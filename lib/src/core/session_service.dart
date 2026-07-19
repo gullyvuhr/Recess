@@ -1,20 +1,27 @@
 import 'database.dart';
 import 'models.dart';
 import 'notifications.dart';
+import '../exercises/exercise.dart';
+import '../exercises/exercise_service.dart';
 
 typedef Clock = DateTime Function();
 
 class RecessSessionService {
+  static const defaultExerciseEnvironment = ExerciseEnvironment.indoor;
+
   RecessSessionService({
     required RecessDatabase database,
     required BellNotifications notifications,
+    required ExerciseService exercises,
     Clock? clock,
   })  : _database = database,
         _notifications = notifications,
+        _exercises = exercises,
         _clock = clock ?? DateTime.now;
 
   final RecessDatabase _database;
   final BellNotifications _notifications;
+  final ExerciseService _exercises;
   final Clock _clock;
 
   Future<RecessSession?> restore() async {
@@ -37,6 +44,8 @@ class RecessSessionService {
       }
     } else if (open.status == RecessSessionStatus.deferred) {
       await _notifications.scheduleDeferredBell(open.id, open.scheduledAt);
+    } else if (open.status == RecessSessionStatus.active) {
+      return _ensureExerciseAssigned(open);
     }
     return open;
   }
@@ -81,12 +90,15 @@ class RecessSessionService {
 
   Future<RecessSession> start(int sessionId) async {
     await _notifications.cancelDeferredBell();
-    return _database.startSession(sessionId, _clock());
+    final exercise = await _selectExercise();
+    return _database.startSession(sessionId, _clock(), exercise.id);
   }
 
   Future<RecessSession> startNow() async {
     final open = await _database.openSession();
-    if (open?.status == RecessSessionStatus.active) return open!;
+    if (open?.status == RecessSessionStatus.active) {
+      return _ensureExerciseAssigned(open!);
+    }
     if (open != null) return start(open.id);
     final now = _clock();
     final session = await _database.openOrCreateScheduledSession(
@@ -125,6 +137,20 @@ class RecessSessionService {
     final session = await _database.completeSession(sessionId, _clock());
     await _scheduleNextCadence();
     return session;
+  }
+
+  Future<RecessSession> _ensureExerciseAssigned(RecessSession session) async {
+    if (session.exerciseId != null) return session;
+    final exercise = await _selectExercise();
+    return _database.assignExerciseToActiveSession(session.id, exercise.id);
+  }
+
+  Future<Exercise> _selectExercise() async {
+    final previous = await _database.lastAssignedExerciseId();
+    return _exercises.select(
+      environment: defaultExerciseEnvironment,
+      previousExerciseId: previous,
+    );
   }
 
   Future<RecessSession?> _scheduleNextCadence() async {

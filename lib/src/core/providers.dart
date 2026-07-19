@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../exercises/exercise.dart';
+import '../exercises/exercise_repository.dart';
+import '../exercises/exercise_service.dart';
 import 'database.dart';
 import 'models.dart';
 import 'notifications.dart';
@@ -12,11 +15,18 @@ final databaseProvider =
     Provider<RecessDatabase>((_) => throw UnimplementedError());
 final notificationServiceProvider =
     Provider<BellNotifications>((_) => throw UnimplementedError());
+final exerciseCatalogProvider = Provider<ExerciseCatalog>(
+  (_) => AssetExerciseRepository(),
+);
+final exerciseServiceProvider = Provider(
+  (ref) => ExerciseService(catalog: ref.watch(exerciseCatalogProvider)),
+);
 
 final sessionServiceProvider = Provider(
   (ref) => RecessSessionService(
     database: ref.watch(databaseProvider),
     notifications: ref.watch(notificationServiceProvider),
+    exercises: ref.watch(exerciseServiceProvider),
   ),
 );
 
@@ -28,6 +38,9 @@ final todayProgressProvider = FutureProvider<TodayProgress>(
 );
 final sessionProvider = FutureProvider.family<RecessSession?, int>(
   (ref, id) => ref.watch(databaseProvider).session(id),
+);
+final exerciseProvider = FutureProvider.family<Exercise?, String>(
+  (ref, id) => ref.watch(exerciseServiceProvider).findById(id),
 );
 
 class RecessActions {

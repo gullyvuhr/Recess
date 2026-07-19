@@ -22,6 +22,7 @@ class RecessDatabase extends GeneratedDatabase {
       completed_at INTEGER,
       status TEXT NOT NULL,
       deferral_type TEXT,
+      exercise_id TEXT,
       created_at INTEGER NOT NULL
     )
   ''';
@@ -32,7 +33,7 @@ class RecessDatabase extends GeneratedDatabase {
   ''';
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
@@ -66,6 +67,11 @@ class RecessDatabase extends GeneratedDatabase {
               FROM recess_entries
               WHERE status IN ('started', 'completed', 'rainCheck')
             ''');
+          }
+          if (from >= 2 && from < 3) {
+            await customStatement(
+              'ALTER TABLE recess_sessions ADD COLUMN exercise_id TEXT',
+            );
           }
         },
         beforeOpen: (_) => _ensureSchema(),
@@ -160,16 +166,46 @@ class RecessDatabase extends GeneratedDatabase {
     return rows.isEmpty ? null : _sessionFromRow(rows.single);
   }
 
-  Future<RecessSession> startSession(int id, DateTime startedAt) async {
+  Future<RecessSession> startSession(
+    int id,
+    DateTime startedAt,
+    String exerciseId,
+  ) async {
     final changed = await customUpdate(
-      "UPDATE recess_sessions SET status = ?, started_at = ? WHERE id = ? AND status IN ('scheduled', 'deferred')",
+      "UPDATE recess_sessions SET status = ?, started_at = ?, exercise_id = ? WHERE id = ? AND status IN ('scheduled', 'deferred') AND exercise_id IS NULL",
       variables: [
         Variable.withString(RecessSessionStatus.active.name),
         Variable.withInt(startedAt.millisecondsSinceEpoch),
+        Variable.withString(exerciseId),
         Variable.withInt(id),
       ],
     );
     return _requiredTransition(id, changed, 'start');
+  }
+
+  Future<RecessSession> assignExerciseToActiveSession(
+    int id,
+    String exerciseId,
+  ) async {
+    final changed = await customUpdate(
+      "UPDATE recess_sessions SET exercise_id = ? WHERE id = ? AND status = 'active' AND exercise_id IS NULL",
+      variables: [Variable.withString(exerciseId), Variable.withInt(id)],
+    );
+    if (changed == 0) {
+      final existing = await session(id);
+      if (existing?.status == RecessSessionStatus.active &&
+          existing?.exerciseId != null) {
+        return existing!;
+      }
+    }
+    return _requiredTransition(id, changed, 'assign exercise to');
+  }
+
+  Future<String?> lastAssignedExerciseId() async {
+    final rows = await customSelect(
+      'SELECT exercise_id FROM recess_sessions WHERE exercise_id IS NOT NULL ORDER BY started_at DESC, id DESC LIMIT 1',
+    ).get();
+    return rows.isEmpty ? null : rows.single.read<String>('exercise_id');
   }
 
   Future<RecessSession?> markBellOpened(
@@ -230,7 +266,7 @@ class RecessDatabase extends GeneratedDatabase {
 
   Future<RecessSession> completeSession(int id, DateTime completedAt) async {
     final changed = await customUpdate(
-      "UPDATE recess_sessions SET status = ?, completed_at = ? WHERE id = ? AND status = 'active'",
+      "UPDATE recess_sessions SET status = ?, completed_at = ? WHERE id = ? AND status = 'active' AND exercise_id IS NOT NULL",
       variables: [
         Variable.withString(RecessSessionStatus.completed.name),
         Variable.withInt(completedAt.millisecondsSinceEpoch),
@@ -293,6 +329,7 @@ class RecessDatabase extends GeneratedDatabase {
       status: RecessSessionStatus.values.byName(row.read<String>('status')),
       deferralType:
           deferral == null ? null : RecessDeferralType.values.byName(deferral),
+      exerciseId: row.readNullable<String>('exercise_id'),
       createdAt:
           DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at')),
     );

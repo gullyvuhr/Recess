@@ -1,0 +1,146 @@
+[
+  {
+    "id": "shoulder-rolls",
+    "title": "Shoulder Rolls",
+    "instruction": "Roll your shoulders slowly backward, then forward, letting your arms stay loose.",
+    "durationMinutes": 2,
+    "category": "movement",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "room-lap",
+    "title": "Take a Lap",
+    "instruction": "Walk one easy lap around your room, floor, or nearby space without checking a screen.",
+    "durationMinutes": 3,
+    "category": "movement",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "shake-it-out",
+    "title": "Shake It Out",
+    "instruction": "Stand up and gently shake out your hands, arms, legs, and shoulders.",
+    "durationMinutes": 2,
+    "category": "movement",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "fresh-air-steps",
+    "title": "Fresh-Air Steps",
+    "instruction": "Step outside and walk at an unhurried pace, noticing the air as you move.",
+    "durationMinutes": 5,
+    "category": "movement",
+    "availableIndoors": false,
+    "availableOutdoors": true
+  },
+  {
+    "id": "long-exhale",
+    "title": "Long Exhale",
+    "instruction": "Breathe in comfortably, then let each exhale last a little longer than the inhale.",
+    "durationMinutes": 2,
+    "category": "breathing",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "box-breathing",
+    "title": "Four-Sided Breath",
+    "instruction": "Inhale, pause, exhale, and pause again for an easy count of four each.",
+    "durationMinutes": 3,
+    "category": "breathing",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "three-soft-breaths",
+    "title": "Three Soft Breaths",
+    "instruction": "Take three quiet breaths and relax your jaw a little more with each exhale.",
+    "durationMinutes": 1,
+    "category": "breathing",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "open-air-breath",
+    "title": "Open-Air Breath",
+    "instruction": "Step outside and take five slow breaths while feeling the temperature of the air.",
+    "durationMinutes": 2,
+    "category": "breathing",
+    "availableIndoors": false,
+    "availableOutdoors": true
+  },
+  {
+    "id": "five-things",
+    "title": "Notice Five Things",
+    "instruction": "Look around slowly and name five ordinary things you can see right now.",
+    "durationMinutes": 2,
+    "category": "mindfulness",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "listen-near-far",
+    "title": "Listen Near and Far",
+    "instruction": "Notice one sound nearby, one farther away, and the quiet between them.",
+    "durationMinutes": 3,
+    "category": "mindfulness",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "screenless-minute",
+    "title": "A Screenless Minute",
+    "instruction": "Set your device down and let one minute pass without trying to fill it.",
+    "durationMinutes": 1,
+    "category": "mindfulness",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "watch-the-sky",
+    "title": "Watch the Sky",
+    "instruction": "Step outside and spend a few minutes watching the sky without naming what you see.",
+    "durationMinutes": 4,
+    "category": "mindfulness",
+    "availableIndoors": false,
+    "availableOutdoors": true
+  },
+  {
+    "id": "neck-release",
+    "title": "Neck Release",
+    "instruction": "Let one ear drift toward one shoulder, pause gently, then switch sides.",
+    "durationMinutes": 2,
+    "category": "stretch",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "doorway-chest",
+    "title": "Open the Chest",
+    "instruction": "Rest your forearms on a doorway and lean forward gently until your chest opens.",
+    "durationMinutes": 2,
+    "category": "stretch",
+    "availableIndoors": true,
+    "availableOutdoors": false
+  },
+  {
+    "id": "seated-twist",
+    "title": "Seated Twist",
+    "instruction": "Sit tall, turn gently to one side, breathe, and repeat on the other side.",
+    "durationMinutes": 3,
+    "category": "stretch",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  },
+  {
+    "id": "standing-side-reach",
+    "title": "Reach Sideways",
+    "instruction": "Stand tall, reach one arm overhead, and lean gently to each side.",
+    "durationMinutes": 2,
+    "category": "stretch",
+    "availableIndoors": true,
+    "availableOutdoors": true
+  }
+]

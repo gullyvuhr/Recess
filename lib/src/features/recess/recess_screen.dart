@@ -58,7 +58,7 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
     final session = ref.watch(sessionProvider(widget.sessionId));
     return session.when(
       data: (value) => value?.status == RecessSessionStatus.active
-          ? _ActiveSession(onComplete: _complete)
+          ? _ActiveSession(session: value!, onComplete: _complete)
           : const _InvalidSession(),
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -68,50 +68,70 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
   }
 }
 
-class _ActiveSession extends StatelessWidget {
-  const _ActiveSession({required this.onComplete});
+class _ActiveSession extends ConsumerWidget {
+  const _ActiveSession({required this.session, required this.onComplete});
 
+  final RecessSession session;
   final Future<void> Function() onComplete;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => context.go('/home'),
-            icon: const Icon(Icons.close),
-          ),
-          backgroundColor: Colors.transparent,
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(),
-                Text(
-                  'Recess starts here.',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                  textAlign: TextAlign.center,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final exerciseId = session.exerciseId;
+    if (exerciseId == null) return const _InvalidSession();
+    final exercise = ref.watch(exerciseProvider(exerciseId));
+    return exercise.when(
+      data: (value) => value == null
+          ? const _InvalidSession()
+          : Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                  onPressed: () => context.go('/home'),
+                  icon: const Icon(Icons.close),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Step away, stretch, look outside, or do absolutely nothing.',
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: onComplete,
-                  child: const Padding(
-                    padding: EdgeInsets.all(13),
-                    child: Text("I'm back"),
+                backgroundColor: Colors.transparent,
+              ),
+              body: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Spacer(),
+                      Text(
+                        value.title,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        value.instruction,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'About ${value.durationMinutes} ${value.durationMinutes == 1 ? 'minute' : 'minutes'}',
+                        style: Theme.of(context).textTheme.labelLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: onComplete,
+                        child: const Padding(
+                          padding: EdgeInsets.all(13),
+                          child: Text("I'm back"),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      );
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const _InvalidSession(),
+    );
+  }
 }
 
 class _InvalidSession extends StatelessWidget {

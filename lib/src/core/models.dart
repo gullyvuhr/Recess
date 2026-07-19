@@ -26,6 +26,7 @@ class RecessSession {
     this.startedAt,
     this.completedAt,
     this.deferralType,
+    this.exerciseId,
   });
 
   final int id;
@@ -34,6 +35,7 @@ class RecessSession {
   final DateTime? completedAt;
   final RecessSessionStatus status;
   final RecessDeferralType? deferralType;
+  final String? exerciseId;
   final DateTime createdAt;
 
   bool get canDefer => status == RecessSessionStatus.scheduled;

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,9 @@ import 'package:recess/src/core/database.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/notifications.dart';
 import 'package:recess/src/core/session_service.dart';
+import 'package:recess/src/exercises/exercise.dart';
+import 'package:recess/src/exercises/exercise_repository.dart';
+import 'package:recess/src/exercises/exercise_service.dart';
 
 void main() {
   late RecessDatabase database;
@@ -21,6 +25,10 @@ void main() {
     service = RecessSessionService(
       database: database,
       notifications: notifications,
+      exercises: ExerciseService(
+        catalog: StaticCatalog(_testExercises),
+        random: Random(1),
+      ),
       clock: () => now,
     );
     await database.saveSchedule(
@@ -39,8 +47,12 @@ void main() {
     expect(active.status, RecessSessionStatus.active);
     expect(active.startedAt, now);
     expect(active.completedAt, isNull);
+    expect(active.exerciseId, isNotNull);
+    final assignedExerciseId = active.exerciseId;
     await expectLater(service.start(scheduled.id), throwsStateError);
     expect(await _sessionCount(database), 1);
+    expect(
+        (await database.session(scheduled.id))!.exerciseId, assignedExerciseId);
   });
 
   test('Give me a minute defers the same session for 5 minutes', () async {
@@ -83,6 +95,7 @@ void main() {
     expect(rainChecked.status, RecessSessionStatus.rainChecked);
     expect(rainChecked.startedAt, isNull);
     expect(rainChecked.completedAt, isNull);
+    expect(rainChecked.exerciseId, isNull);
     expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
     final progress = await database.todayProgress(now: now);
     expect(progress.started, 0);
@@ -101,24 +114,37 @@ void main() {
     expect(completed.status, RecessSessionStatus.completed);
     expect(completed.startedAt, DateTime(2026, 7, 19, 10));
     expect(completed.completedAt, now);
+    expect(completed.exerciseId, active.exerciseId);
     expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
   });
 
   test("today's progress is derived from persisted session timestamps",
       () async {
     final first = await _session(database, DateTime(2026, 7, 19, 9));
-    await database.startSession(first.id, DateTime(2026, 7, 19, 9, 5));
+    await database.startSession(
+      first.id,
+      DateTime(2026, 7, 19, 9, 5),
+      'shoulder-rolls',
+    );
     await database.completeSession(first.id, DateTime(2026, 7, 19, 9, 25));
 
     final rain = await _session(database, DateTime(2026, 7, 19, 12));
     await database.rainCheckSession(rain.id);
 
     final yesterday = await _session(database, DateTime(2026, 7, 18, 12));
-    await database.startSession(yesterday.id, DateTime(2026, 7, 18, 12));
+    await database.startSession(
+      yesterday.id,
+      DateTime(2026, 7, 18, 12),
+      'long-exhale',
+    );
     await database.completeSession(yesterday.id, DateTime(2026, 7, 18, 12, 10));
 
     final active = await _session(database, DateTime(2026, 7, 19, 11));
-    await database.startSession(active.id, DateTime(2026, 7, 19, 11, 5));
+    await database.startSession(
+      active.id,
+      DateTime(2026, 7, 19, 11, 5),
+      'shoulder-rolls',
+    );
 
     final progress = await database.todayProgress(now: now);
 
@@ -143,6 +169,32 @@ void main() {
       throwsStateError,
     );
     expect(notifications.deferred, hasLength(1));
+  });
+
+  test('session assignment persists one exercise and avoids the last one',
+      () async {
+    final firstScheduled = await _session(database, now);
+    final first = await service.start(firstScheduled.id);
+    now = now.add(const Duration(minutes: 5));
+    await service.complete(first.id);
+    final secondScheduled = await database.openSession();
+
+    service = RecessSessionService(
+      database: database,
+      notifications: notifications,
+      exercises: ExerciseService(
+        catalog: StaticCatalog(_testExercises),
+        random: Random(2),
+      ),
+      clock: () => now,
+    );
+
+    final second = await service.start(secondScheduled!.id);
+
+    expect(first.exerciseId, isNotNull);
+    expect(second.exerciseId, isNotNull);
+    expect(second.exerciseId, isNot(first.exerciseId));
+    expect((await database.session(second.id))!.exerciseId, second.exerciseId);
   });
 
   test('restore and repeated notification taps reuse one session', () async {
@@ -236,6 +288,61 @@ void main() {
         .getSingle();
     expect(legacyCount.read<int>('total'), 1);
   });
+
+  test('schema v3 migrates and repairs an active v2 session', () async {
+    await database.close();
+    final migrated = RecessDatabase(
+      NativeDatabase.memory(
+        setup: (rawDatabase) {
+          rawDatabase.execute(
+            'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+          );
+          rawDatabase.execute(
+            "INSERT INTO settings(key, value) VALUES('work_start', '540'), ('work_end', '1020')",
+          );
+          rawDatabase.execute('''
+            CREATE TABLE recess_sessions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              scheduled_at INTEGER NOT NULL,
+              started_at INTEGER,
+              completed_at INTEGER,
+              status TEXT NOT NULL,
+              deferral_type TEXT,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          rawDatabase.execute(
+            "INSERT INTO recess_sessions(scheduled_at, started_at, status, created_at) VALUES(?, ?, 'active', ?)",
+            [
+              now.millisecondsSinceEpoch,
+              now.millisecondsSinceEpoch,
+              now.millisecondsSinceEpoch,
+            ],
+          );
+          rawDatabase.userVersion = 2;
+        },
+      ),
+    );
+    addTearDown(migrated.close);
+    final migratedService = RecessSessionService(
+      database: migrated,
+      notifications: notifications,
+      exercises: ExerciseService(
+        catalog: StaticCatalog(_testExercises),
+        random: Random(1),
+      ),
+      clock: () => now,
+    );
+
+    final restored = await migratedService.restore();
+    final restoredAgain = await migratedService.restore();
+
+    expect(restored!.status, RecessSessionStatus.active);
+    expect(restored.exerciseId, isNotNull);
+    expect(restoredAgain!.exerciseId, restored.exerciseId);
+    expect(
+        (await migrated.session(restored.id))!.exerciseId, restored.exerciseId);
+  });
 }
 
 Future<RecessSession> _session(
@@ -294,3 +401,33 @@ class FakeNotifications implements BellNotifications {
   @override
   String? takeInitialPayload() => null;
 }
+
+class StaticCatalog implements ExerciseCatalog {
+  const StaticCatalog(this.exercises);
+
+  final List<Exercise> exercises;
+
+  @override
+  Future<List<Exercise>> load() async => exercises;
+}
+
+const _testExercises = [
+  Exercise(
+    id: 'shoulder-rolls',
+    title: 'Shoulder Rolls',
+    instruction: 'Roll your shoulders slowly.',
+    durationMinutes: 2,
+    category: ExerciseCategory.movement,
+    availableIndoors: true,
+    availableOutdoors: true,
+  ),
+  Exercise(
+    id: 'long-exhale',
+    title: 'Long Exhale',
+    instruction: 'Let each exhale last a little longer.',
+    durationMinutes: 2,
+    category: ExerciseCategory.breathing,
+    availableIndoors: true,
+    availableOutdoors: true,
+  ),
+];
