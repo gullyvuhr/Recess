@@ -50,11 +50,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     final schedule = WorkSchedule(startMinutes: start, endMinutes: end);
     await ref.read(databaseProvider).saveSchedule(schedule);
-    try {
-      await ref.read(notificationServiceProvider).scheduleBell(schedule);
-    } catch (_) {
-      // Saving onboarding should still succeed when notifications are denied.
-    }
+    await ref.read(recessActionsProvider).restore();
     ref.invalidate(scheduleProvider);
     if (mounted) {
       context.go('/home');

@@ -33,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () async {
-                await ref.read(notificationServiceProvider).ringBells();
+                await ref.read(recessActionsProvider).ringBellNow();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('The bells rang.')));
@@ -46,8 +46,9 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
-                await ref.read(recessActionsProvider).start();
-                if (context.mounted) context.go('/recess');
+                final session =
+                    await ref.read(recessActionsProvider).startNow();
+                if (context.mounted) context.go('/recess/${session.id}');
               },
               icon: const Icon(Icons.directions_walk),
               label: const Padding(

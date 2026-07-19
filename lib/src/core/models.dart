@@ -1,26 +1,51 @@
-enum RecessStatus { started, completed, rainCheck }
+enum RecessSessionStatus {
+  scheduled,
+  deferred,
+  active,
+  completed,
+  rainChecked,
+}
+
+enum RecessDeferralType { fiveMinutes, afterThis }
 
 class WorkSchedule {
   const WorkSchedule({required this.startMinutes, required this.endMinutes});
+
   final int startMinutes;
   final int endMinutes;
 
   int get bellMinutes => startMinutes + (endMinutes - startMinutes) ~/ 2;
 }
 
-class RecessEntry {
-  const RecessEntry(
-      {required this.id, required this.status, required this.createdAt});
+class RecessSession {
+  const RecessSession({
+    required this.id,
+    required this.scheduledAt,
+    required this.status,
+    required this.createdAt,
+    this.startedAt,
+    this.completedAt,
+    this.deferralType,
+  });
+
   final int id;
-  final RecessStatus status;
+  final DateTime scheduledAt;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final RecessSessionStatus status;
+  final RecessDeferralType? deferralType;
   final DateTime createdAt;
+
+  bool get canDefer => status == RecessSessionStatus.scheduled;
 }
 
 class TodayProgress {
-  const TodayProgress(
-      {required this.started,
-      required this.completed,
-      required this.rainChecks});
+  const TodayProgress({
+    required this.started,
+    required this.completed,
+    required this.rainChecks,
+  });
+
   final int started;
   final int completed;
   final int rainChecks;
