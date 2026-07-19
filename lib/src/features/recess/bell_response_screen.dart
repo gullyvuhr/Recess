@@ -15,14 +15,24 @@ class BellResponseScreen extends ConsumerWidget {
     final session = ref.watch(sessionProvider(sessionId));
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: session.when(
-            data: (value) => value == null
-                ? _Unavailable(onDone: () => context.go('/home'))
-                : _Actions(session: value),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => _Unavailable(onDone: () => context.go('/home')),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints:
+                  BoxConstraints(minHeight: constraints.maxHeight - 48),
+              child: IntrinsicHeight(
+                child: session.when(
+                  data: (value) => value == null
+                      ? _Unavailable(onDone: () => context.go('/home'))
+                      : _Actions(session: value),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (_, __) =>
+                      _Unavailable(onDone: () => context.go('/home')),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -30,19 +40,90 @@ class BellResponseScreen extends ConsumerWidget {
   }
 }
 
-class _Actions extends ConsumerWidget {
+class _Actions extends ConsumerStatefulWidget {
   const _Actions({required this.session});
 
   final RecessSession session;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Actions> createState() => _ActionsState();
+}
+
+class _ActionsState extends ConsumerState<_Actions> {
+  bool _acting = false;
+
+  RecessSession get session => widget.session;
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _start() async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      await ref.read(recessActionsProvider).start(session.id);
+      if (mounted) context.go('/recess/${session.id}');
+    } catch (_) {
+      if (mounted) _message('Recess could not start. Please try again.');
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
+  Future<void> _defer(RecessDeferralType type) async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      final result = await ref.read(recessActionsProvider).defer(
+            session.id,
+            type,
+          );
+      if (!mounted) return;
+      if (!result.notificationSucceeded) {
+        _message(
+          'The reminder could not be scheduled. Check notification permissions.',
+        );
+      }
+      context.go('/home');
+    } catch (_) {
+      if (mounted) {
+        _message('Recess could not defer the Bells. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
+  Future<void> _rainCheck() async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      final result =
+          await ref.read(recessActionsProvider).rainCheck(session.id);
+      if (!mounted) return;
+      if (!result.notificationSucceeded) {
+        _message(
+          'Rain check saved, but the next Bell could not be scheduled.',
+        );
+      }
+      context.go('/home');
+    } catch (_) {
+      if (mounted) _message('Recess could not save the Rain check. Try again.');
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final canRespond = session.status == RecessSessionStatus.scheduled ||
         session.status == RecessSessionStatus.deferred;
     if (!canRespond) {
       return _Unavailable(onDone: () => context.go('/home'));
     }
-    final actions = ref.read(recessActionsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -65,10 +146,7 @@ class _Actions extends ConsumerWidget {
         ),
         const Spacer(),
         FilledButton(
-          onPressed: () async {
-            await actions.start(session.id);
-            if (context.mounted) context.go('/recess/${session.id}');
-          },
+          onPressed: _acting ? null : _start,
           child: const Padding(
             padding: EdgeInsets.all(13),
             child: Text('Start Recess'),
@@ -77,31 +155,18 @@ class _Actions extends ConsumerWidget {
         if (session.canDefer) ...[
           const SizedBox(height: 10),
           OutlinedButton(
-            onPressed: () async {
-              await actions.defer(
-                session.id,
-                RecessDeferralType.fiveMinutes,
-              );
-              if (context.mounted) context.go('/home');
-            },
+            onPressed:
+                _acting ? null : () => _defer(RecessDeferralType.fiveMinutes),
             child: const Text('Give me a minute'),
           ),
           OutlinedButton(
-            onPressed: () async {
-              await actions.defer(
-                session.id,
-                RecessDeferralType.afterThis,
-              );
-              if (context.mounted) context.go('/home');
-            },
+            onPressed:
+                _acting ? null : () => _defer(RecessDeferralType.afterThis),
             child: const Text('After this'),
           ),
         ],
         TextButton(
-          onPressed: () async {
-            await actions.rainCheck(session.id);
-            if (context.mounted) context.go('/home');
-          },
+          onPressed: _acting ? null : _rainCheck,
           child: const Text('Rain check'),
         ),
       ],

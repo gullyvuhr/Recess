@@ -39,6 +39,9 @@ final todayProgressProvider = FutureProvider<TodayProgress>(
 final sessionProvider = FutureProvider.family<RecessSession?, int>(
   (ref, id) => ref.watch(databaseProvider).session(id),
 );
+final openSessionProvider = FutureProvider<RecessSession?>(
+  (ref) => ref.watch(databaseProvider).openSession(),
+);
 final exerciseProvider = FutureProvider.family<Exercise?, String>(
   (ref, id) => ref.watch(exerciseServiceProvider).findById(id),
 );
@@ -50,15 +53,17 @@ class RecessActions {
 
   RecessSessionService get _service => ref.read(sessionServiceProvider);
 
-  Future<RecessSession?> restore() => _service.restore();
+  Future<SessionActionResult<RecessSession?>> restore() => _service.restore();
 
   Future<RecessSession?> openBell(String payload) => _service.openBell(payload);
 
-  Future<RecessSession> ringBellNow() => _service.ringBellNow();
+  Future<SessionActionResult<RecessSession>> ringBellNow() =>
+      _service.ringBellNow();
 
   Future<RecessSession> start(int sessionId) async {
     final session = await _service.start(sessionId);
     ref.invalidate(sessionProvider(sessionId));
+    ref.invalidate(openSessionProvider);
     ref.invalidate(todayProgressProvider);
     return session;
   }
@@ -66,30 +71,34 @@ class RecessActions {
   Future<RecessSession> startNow() async {
     final session = await _service.startNow();
     ref.invalidate(todayProgressProvider);
+    ref.invalidate(openSessionProvider);
     return session;
   }
 
-  Future<RecessSession> defer(
+  Future<SessionActionResult<RecessSession>> defer(
     int sessionId,
     RecessDeferralType type,
   ) async {
-    final session = await _service.defer(sessionId, type);
+    final result = await _service.defer(sessionId, type);
     ref.invalidate(sessionProvider(sessionId));
-    return session;
+    ref.invalidate(openSessionProvider);
+    return result;
   }
 
-  Future<RecessSession> rainCheck(int sessionId) async {
-    final session = await _service.rainCheck(sessionId);
+  Future<SessionActionResult<RecessSession>> rainCheck(int sessionId) async {
+    final result = await _service.rainCheck(sessionId);
     ref.invalidate(sessionProvider(sessionId));
     ref.invalidate(todayProgressProvider);
-    return session;
+    ref.invalidate(openSessionProvider);
+    return result;
   }
 
-  Future<RecessSession> complete(int sessionId) async {
-    final session = await _service.complete(sessionId);
+  Future<SessionActionResult<RecessSession>> complete(int sessionId) async {
+    final result = await _service.complete(sessionId);
     ref.invalidate(sessionProvider(sessionId));
     ref.invalidate(todayProgressProvider);
-    return session;
+    ref.invalidate(openSessionProvider);
+    return result;
   }
 }
 

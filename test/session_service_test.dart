@@ -58,10 +58,11 @@ void main() {
   test('Give me a minute defers the same session for 5 minutes', () async {
     final scheduled = await _session(database, now);
 
-    final deferred = await service.defer(
+    final deferred = (await service.defer(
       scheduled.id,
       RecessDeferralType.fiveMinutes,
-    );
+    ))
+        .value;
 
     expect(deferred.id, scheduled.id);
     expect(deferred.status, RecessSessionStatus.deferred);
@@ -69,27 +70,47 @@ void main() {
     expect(deferred.scheduledAt, now.add(const Duration(minutes: 5)));
     expect(notifications.deferred.single.sessionId, scheduled.id);
     expect(notifications.deferred.single.scheduledAt, deferred.scheduledAt);
+    expect(notifications.cadence.single.sessionId, scheduled.id);
+    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
   });
 
   test('After this defers the same session for 15 minutes', () async {
     final scheduled = await _session(database, now);
 
-    final deferred = await service.defer(
+    final deferred = (await service.defer(
       scheduled.id,
       RecessDeferralType.afterThis,
-    );
+    ))
+        .value;
 
     expect(deferred.id, scheduled.id);
     expect(deferred.status, RecessSessionStatus.deferred);
     expect(deferred.deferralType, RecessDeferralType.afterThis);
     expect(deferred.scheduledAt, now.add(const Duration(minutes: 15)));
     expect(notifications.deferred.single.scheduledAt, deferred.scheduledAt);
+    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
+  });
+
+  test('notification failure is reported without losing the deferral',
+      () async {
+    notifications.succeeds = false;
+    final scheduled = await _session(database, now);
+
+    final result = await service.defer(
+      scheduled.id,
+      RecessDeferralType.fiveMinutes,
+    );
+
+    expect(result.notificationSucceeded, isFalse);
+    expect(result.value.status, RecessSessionStatus.deferred);
+    expect((await database.session(scheduled.id))!.status,
+        RecessSessionStatus.deferred);
   });
 
   test('Rain check is persisted and resumes normal Bell cadence', () async {
     final scheduled = await _session(database, now);
 
-    final rainChecked = await service.rainCheck(scheduled.id);
+    final rainChecked = (await service.rainCheck(scheduled.id)).value;
 
     expect(rainChecked.id, scheduled.id);
     expect(rainChecked.status, RecessSessionStatus.rainChecked);
@@ -108,7 +129,7 @@ void main() {
     final active = await service.start(scheduled.id);
     now = now.add(const Duration(minutes: 20));
 
-    final completed = await service.complete(active.id);
+    final completed = (await service.complete(active.id)).value;
 
     expect(completed.id, scheduled.id);
     expect(completed.status, RecessSessionStatus.completed);
@@ -155,10 +176,11 @@ void main() {
 
   test('a returned deferred Bell cannot be deferred again', () async {
     final scheduled = await _session(database, now);
-    final deferred = await service.defer(
+    final deferred = (await service.defer(
       scheduled.id,
       RecessDeferralType.fiveMinutes,
-    );
+    ))
+        .value;
 
     final opened = await service.openBell('bell:deferred:${deferred.id}');
 
@@ -334,8 +356,8 @@ void main() {
       clock: () => now,
     );
 
-    final restored = await migratedService.restore();
-    final restoredAgain = await migratedService.restore();
+    final restored = (await migratedService.restore()).value;
+    final restoredAgain = (await migratedService.restore()).value;
 
     expect(restored!.status, RecessSessionStatus.active);
     expect(restored.exerciseId, isNotNull);
@@ -370,6 +392,8 @@ class FakeNotifications implements BellNotifications {
   final deferred = <ScheduledCall>[];
   final opened = StreamController<String>.broadcast();
   var deferredCancellationCount = 0;
+  var cadenceCancellationCount = 0;
+  var succeeds = true;
 
   @override
   Stream<String> get openedPayloads => opened.stream;
@@ -380,22 +404,33 @@ class FakeNotifications implements BellNotifications {
   }
 
   @override
-  Future<void> ringBells(int sessionId, {required bool deferred}) async {}
+  Future<void> cancelCadenceBell() async {
+    cadenceCancellationCount++;
+  }
 
   @override
-  Future<void> scheduleCadenceBell(
+  Future<bool> requestPermission() async => succeeds;
+
+  @override
+  Future<bool> ringBells(int sessionId, {required bool deferred}) async =>
+      succeeds;
+
+  @override
+  Future<bool> scheduleCadenceBell(
     int sessionId,
     DateTime scheduledAt,
   ) async {
     cadence.add(ScheduledCall(sessionId, scheduledAt));
+    return succeeds;
   }
 
   @override
-  Future<void> scheduleDeferredBell(
+  Future<bool> scheduleDeferredBell(
     int sessionId,
     DateTime scheduledAt,
   ) async {
     deferred.add(ScheduledCall(sessionId, scheduledAt));
+    return succeeds;
   }
 
   @override

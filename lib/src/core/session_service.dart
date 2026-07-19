@@ -6,6 +6,16 @@ import '../exercises/exercise_service.dart';
 
 typedef Clock = DateTime Function();
 
+class SessionActionResult<T> {
+  const SessionActionResult({
+    required this.value,
+    required this.notificationSucceeded,
+  });
+
+  final T value;
+  final bool notificationSucceeded;
+}
+
 class RecessSessionService {
   static const defaultExerciseEnvironment = ExerciseEnvironment.indoor;
 
@@ -24,11 +34,10 @@ class RecessSessionService {
   final ExerciseService _exercises;
   final Clock _clock;
 
-  Future<RecessSession?> restore() async {
+  Future<SessionActionResult<RecessSession?>> restore() async {
     final open = await _database.openSession();
     if (open == null) {
-      await _scheduleNextCadence();
-      return null;
+      return _scheduleNextCadence();
     }
     if (open.status == RecessSessionStatus.scheduled) {
       final scheduledAt = _nextCadenceAt(_clock(), await _database.schedule());
@@ -37,17 +46,29 @@ class RecessSessionService {
           open.id,
           scheduledAt,
         );
-        await _notifications.scheduleCadenceBell(
+        final scheduled = await _notifications.scheduleCadenceBell(
           rescheduled.id,
           rescheduled.scheduledAt,
         );
+        return SessionActionResult(
+          value: rescheduled,
+          notificationSucceeded: scheduled,
+        );
       }
     } else if (open.status == RecessSessionStatus.deferred) {
-      await _notifications.scheduleDeferredBell(open.id, open.scheduledAt);
+      final scheduled =
+          await _notifications.scheduleDeferredBell(open.id, open.scheduledAt);
+      return SessionActionResult(
+        value: open,
+        notificationSucceeded: scheduled,
+      );
     } else if (open.status == RecessSessionStatus.active) {
-      return _ensureExerciseAssigned(open);
+      return SessionActionResult(
+        value: await _ensureExerciseAssigned(open),
+        notificationSucceeded: true,
+      );
     }
-    return open;
+    return SessionActionResult(value: open, notificationSucceeded: false);
   }
 
   Future<RecessSession?> openBell(String payload) async {
@@ -64,17 +85,21 @@ class RecessSessionService {
     return null;
   }
 
-  Future<RecessSession> ringBellNow() async {
+  Future<SessionActionResult<RecessSession>> ringBellNow() async {
     final open = await _database.openSession();
-    final session = open ?? await _scheduleNextCadence();
+    final cadence = open == null ? await _scheduleNextCadence() : null;
+    final session = open ?? cadence?.value;
     if (session == null) {
       throw StateError('A work schedule is required before ringing Bells.');
     }
-    await _notifications.ringBells(
+    final delivered = await _notifications.ringBells(
       session.id,
       deferred: session.status == RecessSessionStatus.deferred,
     );
-    return session;
+    return SessionActionResult(
+      value: session,
+      notificationSucceeded: delivered,
+    );
   }
 
   Future<RecessSession?> _openResponseSession(int? id) async {
@@ -89,6 +114,7 @@ class RecessSessionService {
   }
 
   Future<RecessSession> start(int sessionId) async {
+    await _notifications.cancelCadenceBell();
     await _notifications.cancelDeferredBell();
     final exercise = await _selectExercise();
     return _database.startSession(sessionId, _clock(), exercise.id);
@@ -108,10 +134,11 @@ class RecessSessionService {
     return start(session.id);
   }
 
-  Future<RecessSession> defer(
+  Future<SessionActionResult<RecessSession>> defer(
     int sessionId,
     RecessDeferralType type,
   ) async {
+    await _notifications.cancelCadenceBell();
     final delay = switch (type) {
       RecessDeferralType.fiveMinutes => const Duration(minutes: 5),
       RecessDeferralType.afterThis => const Duration(minutes: 15),
@@ -122,21 +149,34 @@ class RecessSessionService {
       type,
       scheduledAt,
     );
-    await _notifications.scheduleDeferredBell(session.id, scheduledAt);
-    return session;
+    final reminderScheduled =
+        await _notifications.scheduleDeferredBell(session.id, scheduledAt);
+    // Keep the normal daily cadence alive even if this one-shot reminder is
+    // ignored. openOrCreateScheduledSession reuses this deferred session.
+    final cadence = await _scheduleNextCadence();
+    return SessionActionResult(
+      value: session,
+      notificationSucceeded: reminderScheduled && cadence.notificationSucceeded,
+    );
   }
 
-  Future<RecessSession> rainCheck(int sessionId) async {
+  Future<SessionActionResult<RecessSession>> rainCheck(int sessionId) async {
     await _notifications.cancelDeferredBell();
     final session = await _database.rainCheckSession(sessionId);
-    await _scheduleNextCadence();
-    return session;
+    final cadence = await _scheduleNextCadence();
+    return SessionActionResult(
+      value: session,
+      notificationSucceeded: cadence.notificationSucceeded,
+    );
   }
 
-  Future<RecessSession> complete(int sessionId) async {
+  Future<SessionActionResult<RecessSession>> complete(int sessionId) async {
     final session = await _database.completeSession(sessionId, _clock());
-    await _scheduleNextCadence();
-    return session;
+    final cadence = await _scheduleNextCadence();
+    return SessionActionResult(
+      value: session,
+      notificationSucceeded: cadence.notificationSucceeded,
+    );
   }
 
   Future<RecessSession> _ensureExerciseAssigned(RecessSession session) async {
@@ -153,17 +193,26 @@ class RecessSessionService {
     );
   }
 
-  Future<RecessSession?> _scheduleNextCadence() async {
+  Future<SessionActionResult<RecessSession?>> _scheduleNextCadence() async {
     final schedule = await _database.schedule();
-    if (schedule == null) return null;
+    if (schedule == null) {
+      return const SessionActionResult(
+        value: null,
+        notificationSucceeded: false,
+      );
+    }
     final now = _clock();
     final scheduledAt = _nextCadenceAt(now, schedule)!;
     final session = await _database.openOrCreateScheduledSession(
       scheduledAt: scheduledAt,
       createdAt: now,
     );
-    await _notifications.scheduleCadenceBell(session.id, scheduledAt);
-    return session;
+    final scheduled =
+        await _notifications.scheduleCadenceBell(session.id, scheduledAt);
+    return SessionActionResult(
+      value: session,
+      notificationSucceeded: scheduled,
+    );
   }
 
   DateTime? _nextCadenceAt(DateTime now, WorkSchedule? schedule) {

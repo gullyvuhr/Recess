@@ -10,13 +10,17 @@ abstract interface class BellNotifications {
 
   String? takeInitialPayload();
 
-  Future<void> scheduleCadenceBell(int sessionId, DateTime scheduledAt);
+  Future<bool> requestPermission();
 
-  Future<void> scheduleDeferredBell(int sessionId, DateTime scheduledAt);
+  Future<bool> scheduleCadenceBell(int sessionId, DateTime scheduledAt);
+
+  Future<bool> scheduleDeferredBell(int sessionId, DateTime scheduledAt);
 
   Future<void> cancelDeferredBell();
 
-  Future<void> ringBells(int sessionId, {required bool deferred});
+  Future<void> cancelCadenceBell();
+
+  Future<bool> ringBells(int sessionId, {required bool deferred});
 }
 
 class NotificationService implements BellNotifications {
@@ -51,17 +55,24 @@ class NotificationService implements BellNotifications {
     if (launchDetails?.didNotificationLaunchApp ?? false) {
       _initialPayload = launchDetails?.notificationResponse?.payload;
     }
+  }
+
+  @override
+  Future<bool> requestPermission() async {
     try {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(alert: true, sound: true);
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.requestNotificationsPermission() ?? false;
+      }
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        return await ios.requestPermissions(alert: true, sound: true) ?? false;
+      }
+      return true;
     } catch (_) {
-      // Notification permission is optional; the offline app remains usable.
+      return false;
     }
   }
 
@@ -91,38 +102,42 @@ class NotificationService implements BellNotifications {
   );
 
   @override
-  Future<void> scheduleCadenceBell(
+  Future<bool> scheduleCadenceBell(
     int sessionId,
     DateTime scheduledAt,
   ) async {
-    await _safeSchedule(
+    return _safeSchedule(
       id: cadenceBellNotificationId,
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: false,
+      repeatsDaily: true,
     );
   }
 
   @override
-  Future<void> scheduleDeferredBell(
+  Future<bool> scheduleDeferredBell(
     int sessionId,
     DateTime scheduledAt,
   ) async {
-    await _safeSchedule(
+    return _safeSchedule(
       id: deferredBellNotificationId,
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: true,
+      repeatsDaily: false,
     );
   }
 
-  Future<void> _safeSchedule({
+  Future<bool> _safeSchedule({
     required int id,
     required int sessionId,
     required DateTime scheduledAt,
     required bool deferred,
+    required bool repeatsDaily,
   }) async {
     try {
+      if (!await _canNotify()) return false;
       await _plugin.cancel(id);
       await _plugin.zonedSchedule(
         id,
@@ -132,11 +147,13 @@ class NotificationService implements BellNotifications {
         _details,
         payload: deferred ? 'bell:deferred:$sessionId' : 'bell:$sessionId',
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: repeatsDaily ? DateTimeComponents.time : null,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
+      return true;
     } catch (_) {
-      // Denied or unavailable notifications must not block session state.
+      return false;
     }
   }
 
@@ -150,8 +167,18 @@ class NotificationService implements BellNotifications {
   }
 
   @override
-  Future<void> ringBells(int sessionId, {required bool deferred}) async {
+  Future<void> cancelCadenceBell() async {
     try {
+      await _plugin.cancel(cadenceBellNotificationId);
+    } catch (_) {
+      // Session state remains authoritative when cancellation is unavailable.
+    }
+  }
+
+  @override
+  Future<bool> ringBells(int sessionId, {required bool deferred}) async {
+    try {
+      if (!await _canNotify()) return false;
       await _plugin.show(
         immediateBellNotificationId,
         'Bells',
@@ -160,8 +187,23 @@ class NotificationService implements BellNotifications {
         payload:
             deferred ? 'bell:deferred:$sessionId' : 'bell:immediate:$sessionId',
       );
+      return true;
     } catch (_) {
-      // The test Bell is best-effort when permission is denied.
+      return false;
     }
+  }
+
+  Future<bool> _canNotify() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      return await android.areNotificationsEnabled() ?? false;
+    }
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      return (await ios.checkPermissions())?.isEnabled ?? false;
+    }
+    return true;
   }
 }

@@ -2,15 +2,63 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models.dart';
 import '../../core/providers.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _acting = false;
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _ringBells() async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      final result = await ref.read(recessActionsProvider).ringBellNow();
+      if (!mounted) return;
+      _message(result.notificationSucceeded
+          ? 'The Bells rang.'
+          : 'Recess could not deliver a notification. Check notification permissions.');
+    } catch (_) {
+      if (mounted) {
+        _message('Recess could not ring the Bells. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
+  Future<void> _startRecess() async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      final session = await ref.read(recessActionsProvider).startNow();
+      if (mounted) context.go('/recess/${session.id}');
+    } catch (_) {
+      if (mounted) _message('Recess could not start. Please try again.');
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final progress = ref.watch(todayProgressProvider);
     final schedule = ref.watch(scheduleProvider);
+    final openSessionState = ref.watch(openSessionProvider);
+    final openSession = openSessionState.valueOrNull;
+    final hasActiveSession = openSession?.status == RecessSessionStatus.active;
     return Scaffold(
       appBar: AppBar(
           title: const Text('Recess'), backgroundColor: Colors.transparent),
@@ -32,27 +80,29 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: () async {
-                await ref.read(recessActionsProvider).ringBellNow();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('The bells rang.')));
-                }
-              },
+              onPressed:
+                  _acting || openSessionState.isLoading || hasActiveSession
+                      ? null
+                      : _ringBells,
               icon: const Icon(Icons.notifications_active_outlined),
               label: const Padding(
                   padding: EdgeInsets.all(14), child: Text('Bells')),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () async {
-                final session =
-                    await ref.read(recessActionsProvider).startNow();
-                if (context.mounted) context.go('/recess/${session.id}');
-              },
+              onPressed:
+                  _acting || openSessionState.isLoading ? null : _startRecess,
               icon: const Icon(Icons.directions_walk),
-              label: const Padding(
-                  padding: EdgeInsets.all(14), child: Text('Start Recess')),
+              label: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text(
+                  openSessionState.isLoading
+                      ? 'Loading Recess…'
+                      : hasActiveSession
+                          ? 'Resume Recess'
+                          : 'Start Recess',
+                ),
+              ),
             ),
             const SizedBox(height: 28),
             Text("Today's progress",
