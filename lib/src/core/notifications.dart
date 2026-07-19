@@ -3,7 +3,12 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'models.dart';
+
 class NotificationService {
+  static const bellNotificationId = 100;
+  static const immediateBellNotificationId = 1;
+
   final _plugin = FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
@@ -37,8 +42,45 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
-  Future<void> ringBells() => _plugin.show(
-      1, 'Bells', 'It might be a good moment for recess.', _details);
+  Future<void> scheduleBell(WorkSchedule schedule) async {
+    final now = tz.TZDateTime.now(tz.local);
+    final hour = schedule.bellMinutes ~/ 60;
+    final minute = schedule.bellMinutes % 60;
+    var nextBell = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    if (!nextBell.isAfter(now)) {
+      nextBell = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day + 1,
+        hour,
+        minute,
+      );
+    }
+
+    await _plugin.cancel(bellNotificationId);
+    await _plugin.zonedSchedule(
+      bellNotificationId,
+      'Bells',
+      'It might be a good moment for recess.',
+      nextBell,
+      _details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  Future<void> ringBells() => _plugin.show(immediateBellNotificationId, 'Bells',
+      'It might be a good moment for recess.', _details);
 
   Future<void> remindIn(Duration delay, {required String label}) =>
       _plugin.zonedSchedule(

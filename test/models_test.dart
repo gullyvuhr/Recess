@@ -6,6 +6,15 @@ void main() {
     const schedule = WorkSchedule(startMinutes: 540, endMinutes: 1020);
     expect(schedule.startMinutes, 9 * 60);
     expect(schedule.endMinutes, 17 * 60);
+    expect(schedule.bellMinutes, 13 * 60);
+  });
+
+  test('bell falls at the midpoint of an uneven workday', () {
+    const schedule = WorkSchedule(
+      startMinutes: 8 * 60 + 30,
+      endMinutes: 17 * 60,
+    );
+    expect(schedule.bellMinutes, 12 * 60 + 45);
   });
 
   test('today progress exposes each outcome separately', () {

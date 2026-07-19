@@ -4,6 +4,8 @@ class WorkSchedule {
   const WorkSchedule({required this.startMinutes, required this.endMinutes});
   final int startMinutes;
   final int endMinutes;
+
+  int get bellMinutes => startMinutes + (endMinutes - startMinutes) ~/ 2;
 }
 
 class RecessEntry {
