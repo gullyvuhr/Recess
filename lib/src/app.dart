@@ -10,7 +10,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/onboarding',
     routes: [
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      GoRoute(
+          path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/recess', builder: (_, __) => const RecessScreen()),
     ],
@@ -35,4 +36,3 @@ class RecessApp extends ConsumerWidget {
     );
   }
 }
-

@@ -7,11 +7,15 @@ import 'notifications.dart';
 export 'database.dart';
 export 'notifications.dart';
 
-final databaseProvider = Provider<RecessDatabase>((_) => throw UnimplementedError());
-final notificationServiceProvider = Provider<NotificationService>((_) => throw UnimplementedError());
+final databaseProvider =
+    Provider<RecessDatabase>((_) => throw UnimplementedError());
+final notificationServiceProvider =
+    Provider<NotificationService>((_) => throw UnimplementedError());
 
-final scheduleProvider = FutureProvider<WorkSchedule?>((ref) => ref.watch(databaseProvider).schedule());
-final todayProgressProvider = FutureProvider<TodayProgress>((ref) => ref.watch(databaseProvider).todayProgress());
+final scheduleProvider = FutureProvider<WorkSchedule?>(
+    (ref) => ref.watch(databaseProvider).schedule());
+final todayProgressProvider = FutureProvider<TodayProgress>(
+    (ref) => ref.watch(databaseProvider).todayProgress());
 
 class RecessActions {
   RecessActions(this.ref);
@@ -34,4 +38,3 @@ class RecessActions {
 }
 
 final recessActionsProvider = Provider(RecessActions.new);
-

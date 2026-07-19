@@ -10,7 +10,7 @@ class NotificationService {
     tz.initializeTimeZones();
     try {
       final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone.name));
+      tz.setLocalLocation(tz.getLocation(zone));
     } catch (_) {
       tz.setLocalLocation(tz.UTC);
     }
@@ -19,25 +19,36 @@ class NotificationService {
       iOS: DarwinInitializationSettings(),
     );
     await _plugin.initialize(settings);
-    await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-    await _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.requestPermissions(alert: true, sound: true);
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, sound: true);
   }
 
   static const _details = NotificationDetails(
-    android: AndroidNotificationDetails('recess_reminders', 'Recess reminders', channelDescription: 'Gentle reminders to take a recess', importance: Importance.high, priority: Priority.high),
+    android: AndroidNotificationDetails('recess_reminders', 'Recess reminders',
+        channelDescription: 'Gentle reminders to take a recess',
+        importance: Importance.high,
+        priority: Priority.high),
     iOS: DarwinNotificationDetails(),
   );
 
-  Future<void> ringBells() => _plugin.show(1, 'Bells', 'It might be a good moment for recess.', _details);
+  Future<void> ringBells() => _plugin.show(
+      1, 'Bells', 'It might be a good moment for recess.', _details);
 
-  Future<void> remindIn(Duration delay, {required String label}) => _plugin.zonedSchedule(
+  Future<void> remindIn(Duration delay, {required String label}) =>
+      _plugin.zonedSchedule(
         DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
         'Recess is ready',
         label,
         tz.TZDateTime.now(tz.local).add(delay),
         _details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
 }
-

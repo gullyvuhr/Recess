@@ -1,4 +1,5 @@
 .dart_tool/
+.flutter-sdk/
 .idea/
 .packages
 .flutter-plugins
@@ -9,4 +10,3 @@ coverage/
 android/local.properties
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
-

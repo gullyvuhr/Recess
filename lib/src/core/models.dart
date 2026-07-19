@@ -7,16 +7,19 @@ class WorkSchedule {
 }
 
 class RecessEntry {
-  const RecessEntry({required this.id, required this.status, required this.createdAt});
+  const RecessEntry(
+      {required this.id, required this.status, required this.createdAt});
   final int id;
   final RecessStatus status;
   final DateTime createdAt;
 }
 
 class TodayProgress {
-  const TodayProgress({required this.started, required this.completed, required this.rainChecks});
+  const TodayProgress(
+      {required this.started,
+      required this.completed,
+      required this.rainChecks});
   final int started;
   final int completed;
   final int rainChecks;
 }
-
