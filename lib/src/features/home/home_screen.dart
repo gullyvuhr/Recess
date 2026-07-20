@@ -65,6 +65,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
+            tooltip: 'History',
+            onPressed: () => context.push('/history'),
+            icon: const Icon(Icons.history),
+          ),
+          IconButton(
             tooltip: 'Edit work schedule',
             onPressed: () => context.go('/onboarding?edit=true'),
             icon: const Icon(Icons.schedule_outlined),

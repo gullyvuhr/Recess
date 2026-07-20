@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/providers.dart';
 import 'features/home/home_screen.dart';
+import 'features/history/history_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/recess/bell_response_screen.dart';
 import 'features/recess/recess_screen.dart';
@@ -21,6 +22,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
       GoRoute(
         path: '/bell/:sessionId',
         builder: (_, state) => BellResponseScreen(
