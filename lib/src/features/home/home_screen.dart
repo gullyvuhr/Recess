@@ -56,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final progress = ref.watch(todayProgressProvider);
     final schedule = ref.watch(scheduleProvider);
+    final homeStatus = ref.watch(homeRecessStatusProvider);
     final openSessionState = ref.watch(openSessionProvider);
     final openSession = openSessionState.valueOrNull;
     final hasActiveSession = openSession?.status == RecessSessionStatus.active;
@@ -77,7 +78,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(todayProgressProvider),
+        onRefresh: () async {
+          ref.invalidate(todayProgressProvider);
+          ref.invalidate(scheduleProvider);
+          ref.invalidate(openSessionProvider);
+        },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
@@ -86,9 +91,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 8),
             schedule.when(
-              data: (value) => Text(value == null
-                  ? 'Set a work schedule'
-                  : 'Your workday is ${_time(context, value.startMinutes)}–${_time(context, value.endMinutes)}.'),
+              data: (value) => value == null
+                  ? const Text('Set a work schedule')
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your workday is ${_time(context, value.startMinutes)}–${_time(context, value.endMinutes)}.',
+                        ),
+                        const SizedBox(height: 4),
+                        homeStatus.when(
+                          data: (status) => Text(_nextRecess(context, status)),
+                          loading: () => const Text('Loading next Recess…'),
+                          error: (_, __) => const Text(
+                            'No more Recesses scheduled today',
+                          ),
+                        ),
+                      ],
+                    ),
               loading: () => const Text('Loading your schedule…'),
               error: (_, __) => const Text('Schedule unavailable'),
             ),
@@ -150,6 +170,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _time(BuildContext context, int minutes) =>
       TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
+
+  String _nextRecess(BuildContext context, HomeRecessStatus? status) {
+    if (status == null || status.state == HomeRecessState.noMoreToday) {
+      return 'No more Recesses scheduled today';
+    }
+    if (status.state == HomeRecessState.active) return 'Recess in progress';
+    return 'Next Recess: ${TimeOfDay.fromDateTime(status.scheduledAt!).format(context)}';
+  }
 }
 
 class _Stat extends StatelessWidget {

@@ -8,6 +8,15 @@ enum RecessSessionStatus {
 
 enum RecessDeferralType { fiveMinutes, afterThis }
 
+enum HomeRecessState { scheduled, active, noMoreToday }
+
+class HomeRecessStatus {
+  const HomeRecessStatus(this.state, {this.scheduledAt});
+
+  final HomeRecessState state;
+  final DateTime? scheduledAt;
+}
+
 class WorkSchedule {
   const WorkSchedule({
     required this.startMinutes,

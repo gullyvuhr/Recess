@@ -22,6 +22,7 @@ final exerciseCatalogProvider = Provider<ExerciseCatalog>(
 final exerciseServiceProvider = Provider(
   (ref) => ExerciseService(catalog: ref.watch(exerciseCatalogProvider)),
 );
+final clockProvider = Provider<Clock>((_) => DateTime.now);
 
 final historyNowProvider = Provider<DateTime>((_) => DateTime.now());
 final historyServiceProvider = Provider(
@@ -54,6 +55,7 @@ final sessionServiceProvider = Provider(
     database: ref.watch(databaseProvider),
     notifications: ref.watch(notificationServiceProvider),
     exercises: ref.watch(exerciseServiceProvider),
+    clock: ref.watch(clockProvider),
   ),
 );
 
@@ -69,6 +71,27 @@ final sessionProvider = FutureProvider.family<RecessSession?, int>(
 final openSessionProvider = FutureProvider<RecessSession?>(
   (ref) => ref.watch(databaseProvider).openSession(),
 );
+final homeRecessStatusProvider = FutureProvider<HomeRecessStatus?>((ref) async {
+  final schedule = await ref.watch(scheduleProvider.future);
+  if (schedule == null) return null;
+
+  final session = await ref.watch(openSessionProvider.future);
+  if (session?.status == RecessSessionStatus.active) {
+    return const HomeRecessStatus(HomeRecessState.active);
+  }
+  final now = ref.watch(clockProvider)();
+  final today = DateTime(now.year, now.month, now.day);
+  if (session != null &&
+      (session.status == RecessSessionStatus.scheduled ||
+          session.status == RecessSessionStatus.deferred) &&
+      session.workdayDate == today) {
+    return HomeRecessStatus(
+      HomeRecessState.scheduled,
+      scheduledAt: session.scheduledAt,
+    );
+  }
+  return const HomeRecessStatus(HomeRecessState.noMoreToday);
+});
 final exerciseProvider = FutureProvider.family<Exercise?, String>(
   (ref, id) => ref.watch(exerciseServiceProvider).findById(id),
 );
@@ -80,7 +103,12 @@ class RecessActions {
 
   RecessSessionService get _service => ref.read(sessionServiceProvider);
 
-  Future<SessionActionResult<RecessSession?>> restore() => _service.restore();
+  Future<SessionActionResult<RecessSession?>> restore() async {
+    final result = await _service.restore();
+    ref.invalidate(scheduleProvider);
+    ref.invalidate(openSessionProvider);
+    return result;
+  }
 
   Future<SessionActionResult<RecessSession?>> saveSchedule(
     WorkSchedule schedule,
@@ -93,8 +121,11 @@ class RecessActions {
 
   Future<RecessSession?> openBell(String payload) => _service.openBell(payload);
 
-  Future<SessionActionResult<RecessSession>> ringBellNow() =>
-      _service.ringBellNow();
+  Future<SessionActionResult<RecessSession>> ringBellNow() async {
+    final result = await _service.ringBellNow();
+    ref.invalidate(openSessionProvider);
+    return result;
+  }
 
   Future<RecessSession> start(int sessionId) async {
     final session = await _service.start(sessionId);
