@@ -40,7 +40,7 @@ class NotificationService implements BellNotifications {
     tz.initializeTimeZones();
     try {
       final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone));
+      tz.setLocalLocation(tz.getLocation(zone.identifier));
     } catch (_) {
       tz.setLocalLocation(tz.UTC);
     }
