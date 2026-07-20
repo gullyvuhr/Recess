@@ -95,5 +95,11 @@ void main() {
       NotificationService.cadenceNotificationId(first),
       isNot(NotificationService.cadenceNotificationId(second)),
     );
+    expect(
+      NotificationService.cadenceTimeFromNotificationId(
+        NotificationService.cadenceNotificationId(first),
+      ),
+      first,
+    );
   });
 }

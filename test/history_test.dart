@@ -202,7 +202,9 @@ class _FakeNotifications implements BellNotifications {
   @override
   Stream<String> get openedPayloads => _opened.stream;
   @override
-  Future<void> cancelCadenceBell() async {}
+  Future<void> cancelCadenceBell({Set<int> retaining = const {}}) async {}
+  @override
+  Future<List<PendingCadenceBell>> pendingCadenceBells() async => const [];
   @override
   Future<void> cancelDeferredBell() async {}
   @override

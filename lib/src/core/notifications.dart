@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -18,9 +19,18 @@ abstract interface class BellNotifications {
 
   Future<void> cancelDeferredBell();
 
-  Future<void> cancelCadenceBell();
+  Future<void> cancelCadenceBell({Set<int> retaining = const {}});
+
+  Future<List<PendingCadenceBell>> pendingCadenceBells();
 
   Future<bool> ringBells(int sessionId, {required bool deferred});
+}
+
+class PendingCadenceBell {
+  const PendingCadenceBell({required this.id, required this.scheduledAt});
+
+  final int id;
+  final DateTime scheduledAt;
 }
 
 class NotificationService implements BellNotifications {
@@ -139,7 +149,6 @@ class NotificationService implements BellNotifications {
   }) async {
     try {
       if (!await _canNotify()) return false;
-      await _plugin.cancel(id);
       await _plugin.zonedSchedule(
         id,
         'Bells',
@@ -168,13 +177,13 @@ class NotificationService implements BellNotifications {
   }
 
   @override
-  Future<void> cancelCadenceBell() async {
+  Future<void> cancelCadenceBell({Set<int> retaining = const {}}) async {
     try {
       await _plugin.cancel(legacyCadenceBellNotificationId);
       final pending = await _plugin.pendingNotificationRequests();
       for (final request in pending) {
-        if (request.id >= _cadenceNotificationIdBase &&
-            request.id < deferredBellNotificationId * 10000000) {
+        if (_isCadenceNotificationId(request.id) &&
+            !retaining.contains(request.id)) {
           await _plugin.cancel(request.id);
         }
       }
@@ -183,9 +192,40 @@ class NotificationService implements BellNotifications {
     }
   }
 
+  @override
+  Future<List<PendingCadenceBell>> pendingCadenceBells() async {
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      return pending
+          .where((request) => _isCadenceNotificationId(request.id))
+          .map(
+            (request) => PendingCadenceBell(
+              id: request.id,
+              scheduledAt: cadenceTimeFromNotificationId(request.id),
+            ),
+          )
+          .toList(growable: false)
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Unable to inspect pending cadence Bells: $error');
+      }
+      return const [];
+    }
+  }
+
+  static bool _isCadenceNotificationId(int id) =>
+      id >= _cadenceNotificationIdBase &&
+      id < deferredBellNotificationId * 10000000;
+
   static int cadenceNotificationId(DateTime scheduledAt) =>
       _cadenceNotificationIdBase +
       scheduledAt.millisecondsSinceEpoch ~/ Duration.millisecondsPerMinute;
+
+  static DateTime cadenceTimeFromNotificationId(int id) =>
+      DateTime.fromMillisecondsSinceEpoch(
+        (id - _cadenceNotificationIdBase) * Duration.millisecondsPerMinute,
+      );
 
   @override
   Future<bool> ringBells(int sessionId, {required bool deferred}) async {

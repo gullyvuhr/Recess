@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'cadence_schedule.dart';
 import 'database.dart';
 import 'models.dart';
@@ -34,6 +36,7 @@ class RecessSessionService {
   final BellNotifications _notifications;
   final ExerciseService _exercises;
   final Clock _clock;
+  Future<void> _cadenceOperation = Future.value();
 
   Future<SessionActionResult<RecessSession?>> saveSchedule(
     WorkSchedule schedule,
@@ -45,7 +48,7 @@ class RecessSessionService {
   Future<SessionActionResult<RecessSession?>> restore() async {
     final open = await _database.openSession();
     if (open == null) {
-      return _scheduleNextCadence();
+      return _scheduleNextCadence(cancelObsolete: true);
     }
     if (open.status == RecessSessionStatus.scheduled) {
       final times = _cadenceTimes(_clock(), await _database.schedule());
@@ -54,7 +57,11 @@ class RecessSessionService {
           open.id,
           times.first,
         );
-        final scheduled = await _rebuildCadence(rescheduled.id, times);
+        final scheduled = await _rebuildCadence(
+          rescheduled.id,
+          times,
+          cancelObsolete: true,
+        );
         return SessionActionResult(
           value: rescheduled,
           notificationSucceeded: scheduled,
@@ -66,6 +73,7 @@ class RecessSessionService {
       final cadenceScheduled = await _rebuildCadence(
         open.id,
         _cadenceTimes(_clock(), await _database.schedule()),
+        cancelObsolete: true,
       );
       return SessionActionResult(
         value: open,
@@ -123,7 +131,6 @@ class RecessSessionService {
   }
 
   Future<RecessSession> start(int sessionId) async {
-    await _notifications.cancelCadenceBell();
     await _notifications.cancelDeferredBell();
     final exercise = await _selectExercise();
     return _database.startSession(sessionId, _clock(), exercise.id);
@@ -152,7 +159,6 @@ class RecessSessionService {
     if (current?.status != RecessSessionStatus.scheduled) {
       throw StateError('Cannot defer Recess session $sessionId.');
     }
-    await _notifications.cancelCadenceBell();
     final delay = switch (type) {
       RecessDeferralType.fiveMinutes => const Duration(minutes: 5),
       RecessDeferralType.afterThis => const Duration(minutes: 15),
@@ -209,7 +215,9 @@ class RecessSessionService {
     );
   }
 
-  Future<SessionActionResult<RecessSession?>> _scheduleNextCadence() async {
+  Future<SessionActionResult<RecessSession?>> _scheduleNextCadence({
+    bool cancelObsolete = false,
+  }) async {
     final schedule = await _database.schedule();
     if (schedule == null) {
       return const SessionActionResult(
@@ -232,7 +240,11 @@ class RecessSessionService {
       createdAt: now,
       cadenceMinutes: schedule.cadenceMinutes,
     );
-    final scheduled = await _rebuildCadence(session.id, times);
+    final scheduled = await _rebuildCadence(
+      session.id,
+      times,
+      cancelObsolete: cancelObsolete,
+    );
     return SessionActionResult(
       value: session,
       notificationSucceeded: scheduled,
@@ -246,15 +258,38 @@ class RecessSessionService {
 
   Future<bool> _rebuildCadence(
     int sessionId,
-    List<DateTime> times,
-  ) async {
-    await _notifications.cancelCadenceBell();
-    var succeeded = true;
-    for (final scheduledAt in times) {
-      succeeded =
-          await _notifications.scheduleCadenceBell(sessionId, scheduledAt) &&
-              succeeded;
-    }
-    return succeeded;
+    List<DateTime> times, {
+    bool cancelObsolete = false,
+  }) =>
+      _serializeCadence(() async {
+        final expectedIds =
+            times.map(NotificationService.cadenceNotificationId).toSet();
+        if (cancelObsolete) {
+          await _notifications.cancelCadenceBell(retaining: expectedIds);
+        }
+        final scheduledTimes = <DateTime>[];
+        var succeeded = true;
+        for (final scheduledAt in times) {
+          final scheduled =
+              await _notifications.scheduleCadenceBell(sessionId, scheduledAt);
+          if (scheduled) scheduledTimes.add(scheduledAt);
+          succeeded = scheduled && succeeded;
+        }
+        final pending = await _notifications.pendingCadenceBells();
+        final pendingIds = pending.map((bell) => bell.id).toSet();
+        final verified = expectedIds.every(pendingIds.contains);
+        if (kDebugMode && _notifications is NotificationService) {
+          debugPrint('Cadence rebuild expected: $times');
+          debugPrint('Cadence rebuild scheduled: $scheduledTimes');
+          debugPrint(
+              'Cadence pending IDs: ${pending.map((bell) => bell.id).toList()}');
+        }
+        return succeeded && verified;
+      });
+
+  Future<T> _serializeCadence<T>(Future<T> Function() operation) {
+    final result = _cadenceOperation.then((_) => operation());
+    _cadenceOperation = result.then<void>((_) {}, onError: (_, __) {});
+    return result;
   }
 }

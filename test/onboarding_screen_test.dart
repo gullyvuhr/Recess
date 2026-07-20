@@ -134,10 +134,24 @@ class FakeNotifications implements BellNotifications {
   Future<void> close() => _opened.close();
 
   @override
-  Future<void> cancelCadenceBell() async {
+  Future<void> cancelCadenceBell({Set<int> retaining = const {}}) async {
     cadenceCancellationCount++;
-    cadence.clear();
+    cadence.removeWhere(
+      (time) => !retaining.contains(
+        NotificationService.cadenceNotificationId(time),
+      ),
+    );
   }
+
+  @override
+  Future<List<PendingCadenceBell>> pendingCadenceBells() async => cadence
+      .map(
+        (time) => PendingCadenceBell(
+          id: NotificationService.cadenceNotificationId(time),
+          scheduledAt: time,
+        ),
+      )
+      .toList(growable: false);
 
   @override
   Future<void> cancelDeferredBell() async {}

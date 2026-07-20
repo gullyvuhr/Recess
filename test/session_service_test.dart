@@ -141,6 +141,80 @@ void main() {
     expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
+  test('10:00 completion at 10:06 preserves the work-start cadence', () async {
+    now = DateTime(2026, 7, 19, 9, 50);
+    final restored = (await service.restore()).value!;
+    expect(restored.scheduledAt, DateTime(2026, 7, 19, 10));
+
+    now = DateTime(2026, 7, 19, 10);
+    notifications.deliver(now);
+    expect((await service.openBell('bell:${restored.id}'))!.id, restored.id);
+    await service.start(restored.id);
+    expect(
+      notifications.pendingTimes,
+      contains(DateTime(2026, 7, 19, 11)),
+    );
+
+    now = DateTime(2026, 7, 19, 10, 6);
+    final result = await service.complete(restored.id);
+    final next = await database.openSession();
+
+    expect(result.notificationSucceeded, isTrue);
+    expect(next, isNotNull);
+    expect(next!.id, isNot(restored.id));
+    expect(next.scheduledAt, DateTime(2026, 7, 19, 11));
+    expect(notifications.pendingTimes.first, DateTime(2026, 7, 19, 11));
+    expect(
+      notifications.cadence
+          .singleWhere(
+            (call) => call.scheduledAt == DateTime(2026, 7, 19, 11),
+          )
+          .sessionId,
+      next.id,
+    );
+    expect(notifications.pendingTimes,
+        isNot(contains(DateTime(2026, 7, 19, 10, 6))));
+    expect(notifications.pendingIds.toSet(),
+        hasLength(notifications.pendingIds.length));
+  });
+
+  test('repeated cycles preserve noon and later cadence Bells', () async {
+    now = DateTime(2026, 7, 19, 9, 50);
+    final ten = (await service.restore()).value!;
+    now = DateTime(2026, 7, 19, 10);
+    notifications.deliver(now);
+    await service.start(ten.id);
+    now = DateTime(2026, 7, 19, 10, 6);
+    await service.complete(ten.id);
+
+    final eleven = (await database.openSession())!;
+    now = DateTime(2026, 7, 19, 11);
+    notifications.deliver(now);
+    await service.openBell('bell:${eleven.id}');
+    await service.start(eleven.id);
+    now = DateTime(2026, 7, 19, 11, 6);
+    await service.complete(eleven.id);
+
+    expect(notifications.pendingTimes.first, DateTime(2026, 7, 19, 12));
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 16)));
+    expect(notifications.pendingIds.toSet(),
+        hasLength(notifications.pendingIds.length));
+  });
+
+  test('limited cancellation cannot silently remove the next Bell', () async {
+    now = DateTime(2026, 7, 19, 9, 50);
+    await service.restore();
+    notifications.limitNextCancellation = true;
+    now = DateTime(2026, 7, 19, 10, 30);
+
+    final result = await service.restore();
+
+    expect(result.notificationSucceeded, isTrue);
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
+    expect(notifications.pendingIds.toSet(),
+        hasLength(notifications.pendingIds.length));
+  });
+
   test("today's progress is derived from persisted session timestamps",
       () async {
     final first = await _session(database, DateTime(2026, 7, 19, 9));
@@ -238,8 +312,8 @@ void main() {
     expect(active.status, RecessSessionStatus.active);
     expect(reopenedActive, isNull);
     expect(await _sessionCount(database), 1);
-    expect(notifications.cadence, isEmpty);
-    expect(notifications.cadenceCancellationCount, 3);
+    expect(notifications.cadence, isNotEmpty);
+    expect(notifications.cadenceCancellationCount, 2);
   });
 
   test('restore cancels obsolete cadence bells before rebuilding', () async {
@@ -433,6 +507,8 @@ class ScheduledCall {
 
   final int sessionId;
   final DateTime scheduledAt;
+
+  int get id => NotificationService.cadenceNotificationId(scheduledAt);
 }
 
 class FakeNotifications implements BellNotifications {
@@ -442,6 +518,15 @@ class FakeNotifications implements BellNotifications {
   var deferredCancellationCount = 0;
   var cadenceCancellationCount = 0;
   var succeeds = true;
+  var limitNextCancellation = false;
+
+  List<DateTime> get pendingTimes =>
+      cadence.map((call) => call.scheduledAt).toList()..sort();
+  List<int> get pendingIds => cadence.map((call) => call.id).toList()..sort();
+
+  void deliver(DateTime scheduledAt) {
+    cadence.removeWhere((call) => call.scheduledAt == scheduledAt);
+  }
 
   @override
   Stream<String> get openedPayloads => opened.stream;
@@ -452,10 +537,23 @@ class FakeNotifications implements BellNotifications {
   }
 
   @override
-  Future<void> cancelCadenceBell() async {
+  Future<void> cancelCadenceBell({Set<int> retaining = const {}}) async {
     cadenceCancellationCount++;
-    cadence.clear();
+    if (limitNextCancellation) {
+      limitNextCancellation = false;
+      final obsolete =
+          cadence.indexWhere((call) => !retaining.contains(call.id));
+      if (obsolete >= 0) cadence.removeAt(obsolete);
+      return;
+    }
+    cadence.removeWhere((call) => !retaining.contains(call.id));
   }
+
+  @override
+  Future<List<PendingCadenceBell>> pendingCadenceBells() async => cadence
+      .map((call) =>
+          PendingCadenceBell(id: call.id, scheduledAt: call.scheduledAt))
+      .toList(growable: false);
 
   @override
   Future<bool> requestPermission() async => succeeds;
@@ -469,6 +567,10 @@ class FakeNotifications implements BellNotifications {
     int sessionId,
     DateTime scheduledAt,
   ) async {
+    cadence.removeWhere(
+      (call) =>
+          call.id == NotificationService.cadenceNotificationId(scheduledAt),
+    );
     cadence.add(ScheduledCall(sessionId, scheduledAt));
     return succeeds;
   }
