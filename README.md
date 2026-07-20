@@ -14,6 +14,10 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 
 Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
+## Why is the source public?
+
+Recess is being built in the open because good products get better when people can see how they're made. You're welcome to explore the code, learn from it, contribute, and use it for personal or internal purposes. What you can't do is turn it into a competing commercial product while Recess is actively being developed. The complete terms are described in the LICENSE file.
+
 ## Run
 
 1. Install Flutter and platform tooling.
@@ -21,4 +25,3 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 3. Run `flutter run`.
 
 For Android 13+, the app requests notification permission at runtime. Platform projects can be generated with `flutter create . --platforms=android,ios` if they are not present in a checkout.
-
