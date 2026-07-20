@@ -139,6 +139,7 @@ class RecessSessionService {
     final session = await _database.openOrCreateScheduledSession(
       scheduledAt: now,
       createdAt: now,
+      cadenceMinutes: (await _database.schedule())?.cadenceMinutes ?? 60,
     );
     return start(session.id);
   }
@@ -147,16 +148,22 @@ class RecessSessionService {
     int sessionId,
     RecessDeferralType type,
   ) async {
+    final current = await _database.session(sessionId);
+    if (current?.status != RecessSessionStatus.scheduled) {
+      throw StateError('Cannot defer Recess session $sessionId.');
+    }
     await _notifications.cancelCadenceBell();
     final delay = switch (type) {
       RecessDeferralType.fiveMinutes => const Duration(minutes: 5),
       RecessDeferralType.afterThis => const Duration(minutes: 15),
     };
-    final scheduledAt = _clock().add(delay);
+    final deferredAt = _clock();
+    final scheduledAt = deferredAt.add(delay);
     final session = await _database.deferSession(
       sessionId,
       type,
       scheduledAt,
+      deferredAt,
     );
     final reminderScheduled =
         await _notifications.scheduleDeferredBell(session.id, scheduledAt);
@@ -171,7 +178,7 @@ class RecessSessionService {
 
   Future<SessionActionResult<RecessSession>> rainCheck(int sessionId) async {
     await _notifications.cancelDeferredBell();
-    final session = await _database.rainCheckSession(sessionId);
+    final session = await _database.rainCheckSession(sessionId, _clock());
     final cadence = await _scheduleNextCadence();
     return SessionActionResult(
       value: session,
@@ -223,6 +230,7 @@ class RecessSessionService {
     final session = await _database.openOrCreateScheduledSession(
       scheduledAt: scheduledAt,
       createdAt: now,
+      cadenceMinutes: schedule.cadenceMinutes,
     );
     final scheduled = await _rebuildCadence(session.id, times);
     return SessionActionResult(

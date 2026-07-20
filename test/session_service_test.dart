@@ -152,7 +152,7 @@ void main() {
     await database.completeSession(first.id, DateTime(2026, 7, 19, 9, 25));
 
     final rain = await _session(database, DateTime(2026, 7, 19, 12));
-    await database.rainCheckSession(rain.id);
+    await database.rainCheckSession(rain.id, DateTime(2026, 7, 19, 12));
 
     final yesterday = await _session(database, DateTime(2026, 7, 18, 12));
     await database.startSession(
