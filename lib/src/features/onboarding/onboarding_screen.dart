@@ -6,7 +6,9 @@ import '../../core/models.dart';
 import '../../core/providers.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({this.editing = false, super.key});
+
+  final bool editing;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -15,22 +17,36 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 17, minute: 0);
+  int _cadenceMinutes = 60;
   bool _checking = true;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _redirectIfComplete();
+    _loadSchedule();
   }
 
-  Future<void> _redirectIfComplete() async {
+  Future<void> _loadSchedule() async {
     final schedule = await ref.read(databaseProvider).schedule();
     if (!mounted) return;
-    if (schedule != null) {
+    if (schedule != null && !widget.editing) {
       context.go('/home');
     } else {
-      setState(() => _checking = false);
+      setState(() {
+        if (schedule != null) {
+          _start = TimeOfDay(
+            hour: schedule.startMinutes ~/ 60,
+            minute: schedule.startMinutes % 60,
+          );
+          _end = TimeOfDay(
+            hour: schedule.endMinutes ~/ 60,
+            minute: schedule.endMinutes % 60,
+          );
+          _cadenceMinutes = schedule.cadenceMinutes;
+        }
+        _checking = false;
+      });
     }
   }
 
@@ -52,34 +68,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     setState(() => _saving = true);
     try {
-      final schedule = WorkSchedule(startMinutes: start, endMinutes: end);
-      await ref.read(databaseProvider).saveSchedule(schedule);
-      if (!mounted) return;
-      final shouldRequest = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Text('A gentle reminder'),
-              content: const Text(
-                'Recess uses notifications to ring the Bells during your workday. You can still use Recess if you choose not to allow them.',
+      final schedule = WorkSchedule(
+        startMinutes: start,
+        endMinutes: end,
+        cadenceMinutes: _cadenceMinutes,
+      );
+      var permissionGranted = true;
+      if (!widget.editing) {
+        final shouldRequest = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('A gentle reminder'),
+                content: const Text(
+                  'Recess uses notifications to ring the Bells during your workday. You can still use Recess if you choose not to allow them.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Not now'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Continue'),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Not now'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Continue'),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-      final permissionGranted = shouldRequest &&
-          await ref.read(notificationServiceProvider).requestPermission();
-      final restored = await ref.read(recessActionsProvider).restore();
-      ref.invalidate(scheduleProvider);
+            ) ??
+            false;
+        permissionGranted = shouldRequest &&
+            await ref.read(notificationServiceProvider).requestPermission();
+      }
+      final restored =
+          await ref.read(recessActionsProvider).saveSchedule(schedule);
       if (!mounted) return;
       if (!permissionGranted || !restored.notificationSucceeded) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,11 +177,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    Text(
+                      'How often should Bells ring?',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      key: const ValueKey('bell-cadence'),
+                      initialValue: _cadenceMinutes,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [30, 45, 60, 90, 120]
+                          .map(
+                            (minutes) => DropdownMenuItem(
+                              value: minutes,
+                              child: Text('Every $minutes minutes'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _saving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => _cadenceMinutes = value);
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 24),
                     FilledButton(
                         onPressed: _saving ? null : _continue,
                         child: const Padding(
                           padding: EdgeInsets.all(12),
-                          child: Text('Begin'),
+                          child: Text('Save schedule'),
                         )),
                   ],
                 ),

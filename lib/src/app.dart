@@ -16,7 +16,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/onboarding',
-        builder: (_, __) => const OnboardingScreen(),
+        builder: (_, state) => OnboardingScreen(
+          editing: state.uri.queryParameters['edit'] == 'true',
+        ),
       ),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(

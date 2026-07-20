@@ -35,6 +35,13 @@ class RecessSessionService {
   final ExerciseService _exercises;
   final Clock _clock;
 
+  Future<SessionActionResult<RecessSession?>> saveSchedule(
+    WorkSchedule schedule,
+  ) async {
+    await _database.saveSchedule(schedule);
+    return restore();
+  }
+
   Future<SessionActionResult<RecessSession?>> restore() async {
     final open = await _database.openSession();
     if (open == null) {

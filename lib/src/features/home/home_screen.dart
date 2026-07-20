@@ -61,7 +61,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasActiveSession = openSession?.status == RecessSessionStatus.active;
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Recess'), backgroundColor: Colors.transparent),
+        title: const Text('Recess'),
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Edit work schedule',
+            onPressed: () => context.go('/onboarding?edit=true'),
+            icon: const Icon(Icons.schedule_outlined),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(todayProgressProvider),
         child: ListView(

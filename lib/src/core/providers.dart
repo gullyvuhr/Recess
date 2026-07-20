@@ -55,6 +55,15 @@ class RecessActions {
 
   Future<SessionActionResult<RecessSession?>> restore() => _service.restore();
 
+  Future<SessionActionResult<RecessSession?>> saveSchedule(
+    WorkSchedule schedule,
+  ) async {
+    final result = await _service.saveSchedule(schedule);
+    ref.invalidate(scheduleProvider);
+    ref.invalidate(openSessionProvider);
+    return result;
+  }
+
   Future<RecessSession?> openBell(String payload) => _service.openBell(payload);
 
   Future<SessionActionResult<RecessSession>> ringBellNow() =>
