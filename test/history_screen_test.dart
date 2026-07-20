@@ -20,6 +20,14 @@ void main() {
       (tester) async {
     await _pumpHistory(tester, database);
 
+    expect(find.text('Insights'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Completed movement: 0 min'), findsOneWidget);
+    expect(find.text('Not enough Recess history yet.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('No Recess history for these seven days.'),
+      300,
+    );
     expect(
         find.text('No Recess history for these seven days.'), findsOneWidget);
     expect(find.text('Completed Recesses'), findsOneWidget);
@@ -50,10 +58,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('History'));
+    await tester.scrollUntilVisible(find.text('View History'), 200);
+    await tester.drag(find.byType(ListView), const Offset(0, -80));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View History'));
     await tester.pumpAndSettle();
 
     expect(find.text('Seven-day summary'), findsOneWidget);
+    expect(find.text('Insights'), findsOneWidget);
   });
 
   testWidgets('navigates to previous period and back to current',
@@ -93,6 +105,7 @@ void main() {
 
     await _pumpHistory(tester, database);
 
+    await tester.scrollUntilVisible(find.text('Completed'), 400);
     expect(find.text('Completed'), findsOneWidget);
     expect(find.textContaining('Shoulder Rolls'), findsOneWidget);
     expect(find.textContaining('Started 9:05 AM'), findsOneWidget);
@@ -118,6 +131,7 @@ void main() {
 
     await _pumpHistory(tester, database);
 
+    await tester.scrollUntilVisible(find.text('Deferred'), 400);
     expect(find.text('Deferred'), findsOneWidget);
     expect(find.textContaining('Deferred 1 time'), findsOneWidget);
     expect(
@@ -133,6 +147,7 @@ void main() {
 
     await _pumpHistory(tester, database);
 
+    await tester.scrollUntilVisible(find.text('Rain checked'), 400);
     expect(find.text('Rain checked'), findsOneWidget);
     expect(
         find.text('0 completed · 0 deferred · 1 rain checked'), findsOneWidget);

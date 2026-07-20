@@ -67,15 +67,18 @@ void main() {
     expect(find.text('Next Recess: 12:00 PM'), findsOneWidget);
     expect(find.text('Bells'), findsOneWidget);
     expect(find.text("Today's progress"), findsOneWidget);
+    expect(find.text('Completed'), findsOneWidget);
+    expect(find.text('Deferred'), findsOneWidget);
     expect(find.text('Insights'), findsOneWidget);
-    expect(find.text("Missed Recesses aren't tracked yet."), findsOneWidget);
-    expect(find.text('0 of 1 recorded Recesses completed'), findsOneWidget);
     expect(
       find.text(
-        'More observations will appear when enough history is available.',
+        'More insights will appear as Recess remembers your activity.',
       ),
       findsOneWidget,
     );
+    expect(find.textContaining('Average response'), findsNothing);
+    expect(find.textContaining('Average duration'), findsNothing);
+    expect(find.textContaining('Completed movement'), findsNothing);
   });
 
   testWidgets('shows the persisted deferred time', (tester) async {
@@ -127,7 +130,10 @@ void main() {
 
     expect(find.text('Set a work schedule'), findsOneWidget);
     expect(find.textContaining('Next Recess:'), findsNothing);
-    expect(find.text('Not enough Recess history yet.'), findsOneWidget);
+    expect(
+      find.text('More insights will appear as Recess remembers your activity.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('refreshes after completion', (tester) async {
@@ -149,8 +155,36 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Next Recess: 11:00 AM'), findsOneWidget);
-    expect(find.text('1 of 2 recorded Recesses completed'), findsOneWidget);
-    expect(find.textContaining('Today: 1 completed'), findsOneWidget);
+    expect(find.textContaining('Average duration'), findsNothing);
+  });
+
+  testWidgets('shows only the highest-ranked observation', (tester) async {
+    await saveSchedule();
+    for (var day = 17; day <= 20; day++) {
+      final scheduled = DateTime(2026, 7, day, 10);
+      final session = await database.createSession(
+        scheduledAt: scheduled,
+        createdAt: scheduled.subtract(const Duration(minutes: 5)),
+      );
+      await database.startSession(
+        session.id,
+        scheduled.add(const Duration(minutes: 2)),
+        'shoulder-rolls',
+      );
+      await database.completeSession(
+        session.id,
+        scheduled.add(const Duration(minutes: 7)),
+      );
+    }
+
+    await pumpHome(tester);
+
+    expect(
+      find.text('You completed 4 of 4 scheduled Recesses this week.'),
+      findsOneWidget,
+    );
+    expect(find.text('Seven-day completion'), findsNothing);
+    expect(find.textContaining('Average response'), findsNothing);
   });
 
   testWidgets('refreshes after deferral', (tester) async {

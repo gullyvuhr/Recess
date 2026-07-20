@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/history.dart';
+import '../../core/insights.dart';
 import '../../core/models.dart';
 import '../../core/providers.dart';
 
@@ -12,6 +13,7 @@ class HistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(historyPeriodProvider);
     final history = ref.watch(historyProvider(period));
+    final insights = ref.watch(insightProvider);
     final now = ref.watch(historyNowProvider);
     return Scaffold(
       appBar: AppBar(
@@ -19,10 +21,16 @@ class HistoryScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(historyProvider(period).future),
+        onRefresh: () async {
+          ref.invalidate(insightProvider);
+          final refreshedHistory = ref.refresh(historyProvider(period).future);
+          await refreshedHistory;
+          await ref.read(insightProvider.future);
+        },
         child: history.when(
           data: (data) => _HistoryBody(
             data: data,
+            insights: insights,
             canMoveNext: period.canMoveNext(now),
             onPrevious: () =>
                 ref.read(historyPeriodProvider.notifier).previous(),
@@ -45,12 +53,14 @@ class HistoryScreen extends ConsumerWidget {
 class _HistoryBody extends StatelessWidget {
   const _HistoryBody({
     required this.data,
+    required this.insights,
     required this.canMoveNext,
     required this.onPrevious,
     required this.onNext,
   });
 
   final HistoryData data;
+  final AsyncValue<InsightSummary> insights;
   final bool canMoveNext;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
@@ -60,6 +70,10 @@ class _HistoryBody extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
+          Text('Insights', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          _DetailedInsights(insights: insights),
+          const SizedBox(height: 20),
           Row(
             children: [
               IconButton(
@@ -101,6 +115,97 @@ class _HistoryBody extends StatelessWidget {
           else
             ...data.days.map(_DayCard.new),
         ],
+      );
+}
+
+class _DetailedInsights extends StatelessWidget {
+  const _DetailedInsights({required this.insights});
+
+  final AsyncValue<InsightSummary> insights;
+
+  @override
+  Widget build(BuildContext context) => insights.when(
+        loading: () => const Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+        error: (_, __) => const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Insights are unavailable right now.'),
+          ),
+        ),
+        data: (summary) {
+          final today = summary.today;
+          final week = summary.sevenDays;
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Today', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${today.completed} completed · ${today.deferred} deferred',
+                  ),
+                  Text(
+                    'Completed movement: ${today.completedMovementDuration.inMinutes} min',
+                  ),
+                  if (today.missed == null)
+                    Text(
+                      "Missed Recesses aren't tracked yet.",
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  const Divider(height: 24),
+                  Text(
+                    'Last 7 days',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    week.scheduled == 0
+                        ? 'Not enough Recess history yet.'
+                        : '${week.completed} of ${week.scheduled} recorded Recesses completed',
+                  ),
+                  if (week.averageResponseTime != null)
+                    Text(
+                      'Average response: ${_duration(week.averageResponseTime)}',
+                    ),
+                  if (week.averageCompletedDuration != null)
+                    Text(
+                      'Average duration: ${_duration(week.averageCompletedDuration)}',
+                    ),
+                  if (summary.observations.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    for (final observation in summary.observations)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              observation.title,
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            Text(observation.description),
+                          ],
+                        ),
+                      ),
+                  ] else if (week.scheduled > 0)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Text(
+                        'More observations will appear when enough history is available.',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
       );
 }
 

@@ -153,8 +153,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _Stat(value: value.started, label: 'Started'),
-                        _Stat(value: value.completed, label: 'Finished'),
-                        _Stat(value: value.rainChecks, label: 'Rain checks'),
+                        _Stat(value: value.completed, label: 'Completed'),
+                        _Stat(
+                          value: insights.valueOrNull?.today.deferred ??
+                              value.rainChecks,
+                          label: 'Deferred',
+                        ),
                       ]),
                 ),
               ),
@@ -165,14 +169,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Text('Insights', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             insights.when(
-              data: (value) => _InsightCard(summary: value),
+              data: (value) => _HomeInsight(summary: value),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const Text('Insights unavailable'),
             ),
-            const SizedBox(height: 18),
-            Text('No streaks. No guilt. Just the next good moment.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => context.push('/history'),
+                iconAlignment: IconAlignment.end,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('View History'),
+              ),
+            ),
           ],
         ),
       ),
@@ -191,81 +200,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({required this.summary});
+class _HomeInsight extends StatelessWidget {
+  const _HomeInsight({required this.summary});
 
   final InsightSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final week = summary.sevenDays;
-    final today = summary.today;
+    final observation = summary.observations.firstOrNull;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Last 7 days', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(
-              week.scheduled == 0
-                  ? 'Not enough Recess history yet.'
-                  : '${week.completed} of ${week.scheduled} recorded Recesses completed',
-            ),
-            if (week.averageResponseTime != null)
-              Text('Average response: ${_duration(week.averageResponseTime!)}'),
-            if (week.averageCompletedDuration != null)
-              Text(
-                'Average duration: ${_duration(week.averageCompletedDuration!)}',
-              ),
-            const Divider(height: 24),
-            Text(
-              'Today: ${today.completed} completed · ${today.deferred} deferred'
-              '${today.missed == null ? '' : ' · ${today.missed} missed'}',
-            ),
-            if (today.missed == null)
-              Text(
-                "Missed Recesses aren't tracked yet.",
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            Text(
-              'Completed movement: ${today.completedMovementDuration.inMinutes} min',
-            ),
-            if (summary.observations.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              for (final observation in summary.observations)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        observation.title,
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      Text(observation.description),
-                    ],
-                  ),
-                ),
-            ] else if (week.scheduled > 0)
-              const Padding(
-                padding: EdgeInsets.only(top: 14),
-                child: Text(
-                  'More observations will appear when enough history is available.',
-                ),
-              ),
-          ],
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Text(
+          observation?.description ??
+              'More insights will appear as Recess remembers your activity.',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
-  }
-
-  static String _duration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds.remainder(60);
-    if (minutes == 0) return '${duration.inSeconds}s';
-    return seconds == 0 ? '${minutes}m' : '${minutes}m ${seconds}s';
   }
 }
 
