@@ -54,11 +54,10 @@ class _RecessAppState extends ConsumerState<RecessApp> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final initialPayload = notifications.takeInitialPayload();
-      if (initialPayload != null) {
-        final handled = await _openBell(initialPayload);
-        if (handled) return;
-      }
       await ref.read(recessActionsProvider).restore();
+      if (initialPayload != null) {
+        await _openBell(initialPayload);
+      }
     });
   }
 

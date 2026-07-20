@@ -6,6 +6,7 @@ void main() {
     const schedule = WorkSchedule(startMinutes: 540, endMinutes: 1020);
     expect(schedule.startMinutes, 9 * 60);
     expect(schedule.endMinutes, 17 * 60);
+    expect(schedule.cadenceMinutes, 60);
     expect(schedule.bellMinutes, 13 * 60);
   });
 
@@ -22,5 +23,15 @@ void main() {
     expect(progress.started, 2);
     expect(progress.completed, 1);
     expect(progress.rainChecks, 1);
+  });
+
+  test('work schedule retains a configured cadence interval', () {
+    const schedule = WorkSchedule(
+      startMinutes: 540,
+      endMinutes: 1020,
+      cadenceMinutes: 90,
+    );
+
+    expect(schedule.cadenceMinutes, 90);
   });
 }

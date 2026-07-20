@@ -70,8 +70,10 @@ void main() {
     expect(deferred.scheduledAt, now.add(const Duration(minutes: 5)));
     expect(notifications.deferred.single.sessionId, scheduled.id);
     expect(notifications.deferred.single.scheduledAt, deferred.scheduledAt);
-    expect(notifications.cadence.single.sessionId, scheduled.id);
-    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
+    expect(
+        notifications.cadence.every((call) => call.sessionId == scheduled.id),
+        isTrue);
+    expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
   test('After this defers the same session for 15 minutes', () async {
@@ -88,7 +90,7 @@ void main() {
     expect(deferred.deferralType, RecessDeferralType.afterThis);
     expect(deferred.scheduledAt, now.add(const Duration(minutes: 15)));
     expect(notifications.deferred.single.scheduledAt, deferred.scheduledAt);
-    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
+    expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
   test('notification failure is reported without losing the deferral',
@@ -117,7 +119,7 @@ void main() {
     expect(rainChecked.startedAt, isNull);
     expect(rainChecked.completedAt, isNull);
     expect(rainChecked.exerciseId, isNull);
-    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
+    expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
     final progress = await database.todayProgress(now: now);
     expect(progress.started, 0);
     expect(progress.completed, 0);
@@ -136,7 +138,7 @@ void main() {
     expect(completed.startedAt, DateTime(2026, 7, 19, 10));
     expect(completed.completedAt, now);
     expect(completed.exerciseId, active.exerciseId);
-    expect(notifications.cadence.single.scheduledAt, DateTime(2026, 7, 19, 13));
+    expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
   test("today's progress is derived from persisted session timestamps",
@@ -222,8 +224,10 @@ void main() {
   test('restore and repeated notification taps reuse one session', () async {
     await service.restore();
     final original = await database.openSession();
+    final firstCadence = List<ScheduledCall>.of(notifications.cadence);
 
     await service.restore();
+    expect(notifications.cadence, hasLength(firstCadence.length));
     final firstOpen = await service.openBell('bell:${original!.id}');
     final secondOpen = await service.openBell('bell:${original.id}');
     final active = await service.start(original.id);
@@ -234,6 +238,50 @@ void main() {
     expect(active.status, RecessSessionStatus.active);
     expect(reopenedActive, isNull);
     expect(await _sessionCount(database), 1);
+    expect(notifications.cadence, isEmpty);
+    expect(notifications.cadenceCancellationCount, 3);
+  });
+
+  test('restore cancels obsolete cadence bells before rebuilding', () async {
+    await service.restore();
+    final initialTimes =
+        notifications.cadence.map((call) => call.scheduledAt).toList();
+
+    now = DateTime(2026, 7, 19, 14, 30);
+    await service.restore();
+
+    expect(notifications.cadenceCancellationCount, 2);
+    expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 15));
+    expect(
+      notifications.cadence.any(
+        (call) =>
+            initialTimes.contains(call.scheduledAt) &&
+            !call.scheduledAt.isAfter(now),
+      ),
+      isFalse,
+    );
+  });
+
+  test('saved cadence interval controls rebuilt notification times', () async {
+    await database.saveSchedule(
+      const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 17 * 60,
+        cadenceMinutes: 90,
+      ),
+    );
+
+    await service.restore();
+
+    expect(
+      notifications.cadence.take(4).map((call) => call.scheduledAt),
+      [
+        DateTime(2026, 7, 19, 10, 30),
+        DateTime(2026, 7, 19, 12),
+        DateTime(2026, 7, 19, 13, 30),
+        DateTime(2026, 7, 19, 15),
+      ],
+    );
   });
 
   test('completion without an active session is rejected safely', () async {
@@ -256,12 +304,12 @@ void main() {
 
   test('cadence uses the next local calendar day at the scheduled time',
       () async {
-    now = DateTime(2026, 3, 8, 14);
+    now = DateTime(2026, 3, 8, 17);
 
     await service.restore();
 
     final scheduled = await database.openSession();
-    expect(scheduled!.scheduledAt, DateTime(2026, 3, 9, 13));
+    expect(scheduled!.scheduledAt, DateTime(2026, 3, 9, 10));
   });
 
   test('schema migration preserves legacy local progress rows', () async {
@@ -406,6 +454,7 @@ class FakeNotifications implements BellNotifications {
   @override
   Future<void> cancelCadenceBell() async {
     cadenceCancellationCount++;
+    cadence.clear();
   }
 
   @override

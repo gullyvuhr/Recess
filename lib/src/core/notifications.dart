@@ -25,8 +25,9 @@ abstract interface class BellNotifications {
 
 class NotificationService implements BellNotifications {
   static const immediateBellNotificationId = 1;
-  static const cadenceBellNotificationId = 100;
+  static const legacyCadenceBellNotificationId = 100;
   static const deferredBellNotificationId = 200;
+  static const _cadenceNotificationIdBase = 10000;
 
   final _plugin = FlutterLocalNotificationsPlugin();
   final _openedPayloads = StreamController<String>.broadcast();
@@ -107,11 +108,11 @@ class NotificationService implements BellNotifications {
     DateTime scheduledAt,
   ) async {
     return _safeSchedule(
-      id: cadenceBellNotificationId,
+      id: cadenceNotificationId(scheduledAt),
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: false,
-      repeatsDaily: true,
+      repeatsDaily: false,
     );
   }
 
@@ -169,11 +170,22 @@ class NotificationService implements BellNotifications {
   @override
   Future<void> cancelCadenceBell() async {
     try {
-      await _plugin.cancel(cadenceBellNotificationId);
+      await _plugin.cancel(legacyCadenceBellNotificationId);
+      final pending = await _plugin.pendingNotificationRequests();
+      for (final request in pending) {
+        if (request.id >= _cadenceNotificationIdBase &&
+            request.id < deferredBellNotificationId * 10000000) {
+          await _plugin.cancel(request.id);
+        }
+      }
     } catch (_) {
       // Session state remains authoritative when cancellation is unavailable.
     }
   }
+
+  static int cadenceNotificationId(DateTime scheduledAt) =>
+      _cadenceNotificationIdBase +
+      scheduledAt.millisecondsSinceEpoch ~/ Duration.millisecondsPerMinute;
 
   @override
   Future<bool> ringBells(int sessionId, {required bool deferred}) async {

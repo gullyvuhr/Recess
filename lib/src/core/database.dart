@@ -112,6 +112,7 @@ class RecessDatabase extends GeneratedDatabase {
     await transaction(() async {
       await setSetting('work_start', '${schedule.startMinutes}');
       await setSetting('work_end', '${schedule.endMinutes}');
+      await setSetting('cadence_minutes', '${schedule.cadenceMinutes}');
       await setSetting('onboarding_complete', 'true');
     });
   }
@@ -119,10 +120,12 @@ class RecessDatabase extends GeneratedDatabase {
   Future<WorkSchedule?> schedule() async {
     final start = await setting('work_start');
     final end = await setting('work_end');
+    final cadence = await setting('cadence_minutes');
     if (start == null || end == null) return null;
     return WorkSchedule(
       startMinutes: int.parse(start),
       endMinutes: int.parse(end),
+      cadenceMinutes: cadence == null ? 60 : int.parse(cadence),
     );
   }
 

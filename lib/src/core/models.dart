@@ -9,10 +9,15 @@ enum RecessSessionStatus {
 enum RecessDeferralType { fiveMinutes, afterThis }
 
 class WorkSchedule {
-  const WorkSchedule({required this.startMinutes, required this.endMinutes});
+  const WorkSchedule({
+    required this.startMinutes,
+    required this.endMinutes,
+    this.cadenceMinutes = 60,
+  }) : assert(cadenceMinutes > 0);
 
   final int startMinutes;
   final int endMinutes;
+  final int cadenceMinutes;
 
   int get bellMinutes => startMinutes + (endMinutes - startMinutes) ~/ 2;
 }

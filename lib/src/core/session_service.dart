@@ -1,3 +1,4 @@
+import 'cadence_schedule.dart';
 import 'database.dart';
 import 'models.dart';
 import 'notifications.dart';
@@ -40,27 +41,28 @@ class RecessSessionService {
       return _scheduleNextCadence();
     }
     if (open.status == RecessSessionStatus.scheduled) {
-      final scheduledAt = _nextCadenceAt(_clock(), await _database.schedule());
-      if (scheduledAt != null) {
+      final times = _cadenceTimes(_clock(), await _database.schedule());
+      if (times.isNotEmpty) {
         final rescheduled = await _database.rescheduleCadenceSession(
           open.id,
-          scheduledAt,
+          times.first,
         );
-        final scheduled = await _notifications.scheduleCadenceBell(
-          rescheduled.id,
-          rescheduled.scheduledAt,
-        );
+        final scheduled = await _rebuildCadence(rescheduled.id, times);
         return SessionActionResult(
           value: rescheduled,
           notificationSucceeded: scheduled,
         );
       }
     } else if (open.status == RecessSessionStatus.deferred) {
-      final scheduled =
+      final reminderScheduled =
           await _notifications.scheduleDeferredBell(open.id, open.scheduledAt);
+      final cadenceScheduled = await _rebuildCadence(
+        open.id,
+        _cadenceTimes(_clock(), await _database.schedule()),
+      );
       return SessionActionResult(
         value: open,
-        notificationSucceeded: scheduled,
+        notificationSucceeded: reminderScheduled && cadenceScheduled,
       );
     } else if (open.status == RecessSessionStatus.active) {
       return SessionActionResult(
@@ -202,27 +204,42 @@ class RecessSessionService {
       );
     }
     final now = _clock();
-    final scheduledAt = _nextCadenceAt(now, schedule)!;
+    final times = _cadenceTimes(now, schedule);
+    if (times.isEmpty) {
+      await _notifications.cancelCadenceBell();
+      return const SessionActionResult(
+        value: null,
+        notificationSucceeded: true,
+      );
+    }
+    final scheduledAt = times.first;
     final session = await _database.openOrCreateScheduledSession(
       scheduledAt: scheduledAt,
       createdAt: now,
     );
-    final scheduled =
-        await _notifications.scheduleCadenceBell(session.id, scheduledAt);
+    final scheduled = await _rebuildCadence(session.id, times);
     return SessionActionResult(
       value: session,
       notificationSucceeded: scheduled,
     );
   }
 
-  DateTime? _nextCadenceAt(DateTime now, WorkSchedule? schedule) {
-    if (schedule == null) return null;
-    final hour = schedule.bellMinutes ~/ 60;
-    final minute = schedule.bellMinutes % 60;
-    var result = DateTime(now.year, now.month, now.day, hour, minute);
-    if (!result.isAfter(now)) {
-      result = DateTime(now.year, now.month, now.day + 1, hour, minute);
+  List<DateTime> _cadenceTimes(DateTime now, WorkSchedule? schedule) {
+    if (schedule == null) return const [];
+    return cadenceBellTimes(schedule: schedule, now: now);
+  }
+
+  Future<bool> _rebuildCadence(
+    int sessionId,
+    List<DateTime> times,
+  ) async {
+    await _notifications.cancelCadenceBell();
+    var succeeded = true;
+    for (final scheduledAt in times) {
+      succeeded =
+          await _notifications.scheduleCadenceBell(sessionId, scheduledAt) &&
+              succeeded;
     }
-    return result;
+    return succeeded;
   }
 }
