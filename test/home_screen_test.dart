@@ -67,6 +67,15 @@ void main() {
     expect(find.text('Next Recess: 12:00 PM'), findsOneWidget);
     expect(find.text('Bells'), findsOneWidget);
     expect(find.text("Today's progress"), findsOneWidget);
+    expect(find.text('Insights'), findsOneWidget);
+    expect(find.text("Missed Recesses aren't tracked yet."), findsOneWidget);
+    expect(find.text('0 of 1 recorded Recesses completed'), findsOneWidget);
+    expect(
+      find.text(
+        'More observations will appear when enough history is available.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows the persisted deferred time', (tester) async {
@@ -118,6 +127,7 @@ void main() {
 
     expect(find.text('Set a work schedule'), findsOneWidget);
     expect(find.textContaining('Next Recess:'), findsNothing);
+    expect(find.text('Not enough Recess history yet.'), findsOneWidget);
   });
 
   testWidgets('refreshes after completion', (tester) async {
@@ -139,6 +149,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Next Recess: 11:00 AM'), findsOneWidget);
+    expect(find.text('1 of 2 recorded Recesses completed'), findsOneWidget);
+    expect(find.textContaining('Today: 1 completed'), findsOneWidget);
   });
 
   testWidgets('refreshes after deferral', (tester) async {

@@ -80,7 +80,11 @@ class RecessSession {
       ? null
       : completedAt!.difference(startedAt!);
 
-  Duration? get responseDelay => startedAt?.difference(originalScheduledAt);
+  Duration? get responseDelay {
+    final start = startedAt;
+    if (start == null || start.isBefore(originalScheduledAt)) return null;
+    return start.difference(originalScheduledAt);
+  }
 }
 
 class TodayProgress {

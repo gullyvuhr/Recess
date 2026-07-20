@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
+import '../../core/insights.dart';
 import '../../core/providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -57,6 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final progress = ref.watch(todayProgressProvider);
     final schedule = ref.watch(scheduleProvider);
     final homeStatus = ref.watch(homeRecessStatusProvider);
+    final insights = ref.watch(insightProvider);
     final openSessionState = ref.watch(openSessionProvider);
     final openSession = openSessionState.valueOrNull;
     final hasActiveSession = openSession?.status == RecessSessionStatus.active;
@@ -82,6 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ref.invalidate(todayProgressProvider);
           ref.invalidate(scheduleProvider);
           ref.invalidate(openSessionProvider);
+          ref.invalidate(insightProvider);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -158,6 +161,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const Text('Progress unavailable'),
             ),
+            const SizedBox(height: 28),
+            Text('Insights', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            insights.when(
+              data: (value) => _InsightCard(summary: value),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const Text('Insights unavailable'),
+            ),
             const SizedBox(height: 18),
             Text('No streaks. No guilt. Just the next good moment.',
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -177,6 +188,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     if (status.state == HomeRecessState.active) return 'Recess in progress';
     return 'Next Recess: ${TimeOfDay.fromDateTime(status.scheduledAt!).format(context)}';
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({required this.summary});
+
+  final InsightSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final week = summary.sevenDays;
+    final today = summary.today;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Last 7 days', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(
+              week.scheduled == 0
+                  ? 'Not enough Recess history yet.'
+                  : '${week.completed} of ${week.scheduled} recorded Recesses completed',
+            ),
+            if (week.averageResponseTime != null)
+              Text('Average response: ${_duration(week.averageResponseTime!)}'),
+            if (week.averageCompletedDuration != null)
+              Text(
+                'Average duration: ${_duration(week.averageCompletedDuration!)}',
+              ),
+            const Divider(height: 24),
+            Text(
+              'Today: ${today.completed} completed · ${today.deferred} deferred'
+              '${today.missed == null ? '' : ' · ${today.missed} missed'}',
+            ),
+            if (today.missed == null)
+              Text(
+                "Missed Recesses aren't tracked yet.",
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            Text(
+              'Completed movement: ${today.completedMovementDuration.inMinutes} min',
+            ),
+            if (summary.observations.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              for (final observation in summary.observations)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        observation.title,
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      Text(observation.description),
+                    ],
+                  ),
+                ),
+            ] else if (week.scheduled > 0)
+              const Padding(
+                padding: EdgeInsets.only(top: 14),
+                child: Text(
+                  'More observations will appear when enough history is available.',
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _duration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    if (minutes == 0) return '${duration.inSeconds}s';
+    return seconds == 0 ? '${minutes}m' : '${minutes}m ${seconds}s';
   }
 }
 

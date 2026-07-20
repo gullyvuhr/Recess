@@ -5,6 +5,7 @@ import '../exercises/exercise_repository.dart';
 import '../exercises/exercise_service.dart';
 import 'database.dart';
 import 'history.dart';
+import 'insights.dart';
 import 'models.dart';
 import 'notifications.dart';
 import 'session_service.dart';
@@ -48,6 +49,15 @@ final historyPeriodProvider =
 final historyProvider =
     FutureProvider.autoDispose.family<HistoryData, HistoryPeriod>(
   (ref, period) => ref.watch(historyServiceProvider).load(period),
+);
+final insightServiceProvider = Provider(
+  (ref) => InsightService(
+    database: ref.watch(databaseProvider),
+    exercises: ref.watch(exerciseCatalogProvider),
+  ),
+);
+final insightProvider = FutureProvider<InsightSummary>(
+  (ref) => ref.watch(insightServiceProvider).load(ref.watch(clockProvider)()),
 );
 
 final sessionServiceProvider = Provider(
@@ -107,6 +117,7 @@ class RecessActions {
     final result = await _service.restore();
     ref.invalidate(scheduleProvider);
     ref.invalidate(openSessionProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 
@@ -116,6 +127,7 @@ class RecessActions {
     final result = await _service.saveSchedule(schedule);
     ref.invalidate(scheduleProvider);
     ref.invalidate(openSessionProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 
@@ -124,6 +136,7 @@ class RecessActions {
   Future<SessionActionResult<RecessSession>> ringBellNow() async {
     final result = await _service.ringBellNow();
     ref.invalidate(openSessionProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 
@@ -133,6 +146,7 @@ class RecessActions {
     ref.invalidate(openSessionProvider);
     ref.invalidate(todayProgressProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(insightProvider);
     return session;
   }
 
@@ -141,6 +155,7 @@ class RecessActions {
     ref.invalidate(todayProgressProvider);
     ref.invalidate(openSessionProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(insightProvider);
     return session;
   }
 
@@ -152,6 +167,7 @@ class RecessActions {
     ref.invalidate(sessionProvider(sessionId));
     ref.invalidate(openSessionProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 
@@ -161,6 +177,7 @@ class RecessActions {
     ref.invalidate(todayProgressProvider);
     ref.invalidate(openSessionProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 
@@ -170,6 +187,7 @@ class RecessActions {
     ref.invalidate(todayProgressProvider);
     ref.invalidate(openSessionProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(insightProvider);
     return result;
   }
 }
