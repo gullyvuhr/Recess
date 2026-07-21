@@ -95,6 +95,24 @@ class HistoryService {
   final RecessDatabase database;
   final ExerciseCatalog exercises;
 
+  Future<List<HistorySession>> loadRecentCompleted({int limit = 4}) async {
+    final sessions = (await database.completedSessions()).take(limit).toList();
+    final catalog = await exercises.load();
+    final exerciseNames = {
+      for (final exercise in catalog) exercise.id: exercise.title
+    };
+    return sessions
+        .map(
+          (session) => HistorySession(
+            session: session,
+            exerciseName: session.exerciseId == null
+                ? null
+                : exerciseNames[session.exerciseId],
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Future<HistoryData> load(HistoryPeriod period) async {
     final sessions = await database.sessionsInRange(
       period.start,

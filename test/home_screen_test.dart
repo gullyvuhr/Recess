@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recess/src/core/insights.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/providers.dart';
 import 'package:recess/src/exercises/exercise.dart';
@@ -14,7 +15,7 @@ void main() {
   late RecessDatabase database;
   late _FakeNotifications notifications;
   late DateTime now;
-  late ProviderContainer container;
+  ProviderContainer? container;
 
   setUp(() {
     database = RecessDatabase(NativeDatabase.memory());
@@ -23,7 +24,7 @@ void main() {
   });
 
   tearDown(() async {
-    container.dispose();
+    container?.dispose();
     await notifications.close();
     await database.close();
   });
@@ -39,7 +40,7 @@ void main() {
     );
     await tester.pumpWidget(
       UncontrolledProviderScope(
-        container: container,
+        container: container!,
         child: const MaterialApp(home: HomeScreen()),
       ),
     );
@@ -54,6 +55,45 @@ void main() {
         ),
       );
 
+  test('formats human-readable countdown boundaries', () {
+    final base = DateTime(2026, 7, 20, 9);
+    expect(formatRecessCountdown(base, base), 'Ready when you are');
+    expect(formatRecessCountdown(base.add(const Duration(seconds: 45)), base),
+        'In less than a minute');
+    expect(formatRecessCountdown(base.add(const Duration(minutes: 1)), base),
+        'In 1 minute');
+    expect(
+      formatRecessCountdown(
+          base.add(const Duration(hours: 2, minutes: 30)), base),
+      'In 2 hr 30 min',
+    );
+  });
+
+  test('formats Today facts with correct singular and plural copy', () {
+    expect(
+      formatTodayProgress(
+        const TodayInsightMetrics(
+          completed: 0,
+          deferred: 0,
+          missed: null,
+          completedMovementDuration: Duration.zero,
+        ),
+      ),
+      '0 recesses · 0 movement minutes',
+    );
+    expect(
+      formatTodayProgress(
+        const TodayInsightMetrics(
+          completed: 1,
+          deferred: 0,
+          missed: null,
+          completedMovementDuration: Duration(minutes: 1),
+        ),
+      ),
+      '1 recess · 1 movement minute',
+    );
+  });
+
   testWidgets('shows the persisted scheduled next Recess', (tester) async {
     await saveSchedule();
     await database.createSession(
@@ -63,22 +103,80 @@ void main() {
 
     await pumpHome(tester);
 
-    expect(find.text('Your workday is 9:00 AM–5:00 PM.'), findsOneWidget);
-    expect(find.text('Next Recess: 12:00 PM'), findsOneWidget);
+    expect(find.text('NEXT RECESS'), findsOneWidget);
+    expect(find.text('12:00'), findsOneWidget);
+    expect(find.text('PM'), findsOneWidget);
+    expect(find.text('Your next Recess is in'), findsOneWidget);
+    expect(find.text('2 hr 30 min'), findsOneWidget);
+    expect(find.text('Start Now'), findsOneWidget);
     expect(find.text('Bells'), findsOneWidget);
-    expect(find.text("Today's progress"), findsOneWidget);
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('Deferred'), findsOneWidget);
-    expect(find.text('Insights'), findsOneWidget);
+    expect(find.byTooltip('History'), findsOneWidget);
+    expect(find.byTooltip('Settings'), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.history),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.settings_outlined),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.byType(Card), findsNothing);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('0 recesses · 0 movement minutes'), findsOneWidget);
+    expect(find.text('Insight'), findsOneWidget);
     expect(
       find.text(
-        'More insights will appear as Recess remembers your activity.',
+        'A useful observation will appear as your Recess history grows.',
       ),
       findsOneWidget,
     );
     expect(find.textContaining('Average response'), findsNothing);
     expect(find.textContaining('Average duration'), findsNothing);
     expect(find.textContaining('Completed movement'), findsNothing);
+    expect(find.text('Recent activity'), findsNothing);
+    expect(find.text('View all'), findsNothing);
+  });
+
+  testWidgets('standard phone viewport does not require scrolling',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await saveSchedule();
+    await database.createSession(
+      scheduledAt: DateTime(2026, 7, 20, 12),
+      createdAt: now,
+    );
+
+    await pumpHome(tester);
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.maxScrollExtent, 0);
+    expect(find.text('Insight'), findsOneWidget);
+  });
+
+  testWidgets('labeled Bells control preserves the manual bell action',
+      (tester) async {
+    await saveSchedule();
+    await database.createSession(
+      scheduledAt: DateTime(2026, 7, 20, 12),
+      createdAt: now,
+    );
+    await pumpHome(tester);
+
+    await tester.tap(find.text('Bells'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The Bells rang.'), findsOneWidget);
   });
 
   testWidgets('shows the persisted deferred time', (tester) async {
@@ -96,7 +194,7 @@ void main() {
 
     await pumpHome(tester);
 
-    expect(find.text('Next Recess: 12:00 PM'), findsOneWidget);
+    expect(find.text('12:00'), findsOneWidget);
   });
 
   testWidgets('shows an active Recess', (tester) async {
@@ -122,16 +220,17 @@ void main() {
 
     await pumpHome(tester);
 
-    expect(find.text('No more Recesses scheduled today'), findsOneWidget);
+    expect(find.text('All done for today'), findsOneWidget);
   });
 
   testWidgets('preserves onboarding state without a schedule', (tester) async {
     await pumpHome(tester);
 
-    expect(find.text('Set a work schedule'), findsOneWidget);
+    expect(find.text('Set your workday'), findsOneWidget);
     expect(find.textContaining('Next Recess:'), findsNothing);
     expect(
-      find.text('More insights will appear as Recess remembers your activity.'),
+      find.text(
+          'A useful observation will appear as your Recess history grows.'),
       findsOneWidget,
     );
   });
@@ -151,10 +250,10 @@ void main() {
     expect(find.text('Recess in progress'), findsOneWidget);
 
     now = DateTime(2026, 7, 20, 10, 6);
-    await container.read(recessActionsProvider).complete(session.id);
+    await container!.read(recessActionsProvider).complete(session.id);
     await tester.pumpAndSettle();
 
-    expect(find.text('Next Recess: 11:00 AM'), findsOneWidget);
+    expect(find.text('11:00'), findsOneWidget);
     expect(find.textContaining('Average duration'), findsNothing);
   });
 
@@ -187,6 +286,27 @@ void main() {
     expect(find.textContaining('Average response'), findsNothing);
   });
 
+  testWidgets('shows compact today facts without recent activity',
+      (tester) async {
+    await saveSchedule();
+    final scheduled = DateTime(2026, 7, 20, 9);
+    final session = await database.createSession(
+      scheduledAt: scheduled,
+      createdAt: scheduled,
+    );
+    await database.startSession(session.id, scheduled, 'shoulder-rolls');
+    await database.completeSession(
+      session.id,
+      scheduled.add(const Duration(minutes: 2)),
+    );
+
+    await pumpHome(tester);
+
+    expect(find.text('1 recess · 2 movement minutes'), findsOneWidget);
+    expect(find.text('Recent activity'), findsNothing);
+    expect(find.text('Shoulder Rolls'), findsNothing);
+  });
+
   testWidgets('refreshes after deferral', (tester) async {
     await saveSchedule();
     final session = await database.createSession(
@@ -195,14 +315,14 @@ void main() {
     );
     now = DateTime(2026, 7, 20, 10);
     await pumpHome(tester);
-    expect(find.text('Next Recess: 10:00 AM'), findsOneWidget);
+    expect(find.text('10:00'), findsOneWidget);
 
-    await container
+    await container!
         .read(recessActionsProvider)
         .defer(session.id, RecessDeferralType.fiveMinutes);
     await tester.pumpAndSettle();
 
-    expect(find.text('Next Recess: 10:05 AM'), findsOneWidget);
+    expect(find.text('10:05'), findsOneWidget);
   });
 
   testWidgets('refreshes after rain check', (tester) async {
@@ -214,28 +334,28 @@ void main() {
     now = DateTime(2026, 7, 20, 10);
     await pumpHome(tester);
 
-    await container.read(recessActionsProvider).rainCheck(session.id);
+    await container!.read(recessActionsProvider).rainCheck(session.id);
     await tester.pumpAndSettle();
 
-    expect(find.text('Next Recess: 11:00 AM'), findsOneWidget);
+    expect(find.text('11:00'), findsOneWidget);
   });
 
   testWidgets('refreshes after app restore', (tester) async {
     await saveSchedule();
     await pumpHome(tester);
-    expect(find.text('No more Recesses scheduled today'), findsOneWidget);
+    expect(find.text('All done for today'), findsOneWidget);
 
-    await container.read(recessActionsProvider).restore();
+    await container!.read(recessActionsProvider).restore();
     await tester.pumpAndSettle();
 
-    expect(find.text('Next Recess: 10:00 AM'), findsOneWidget);
+    expect(find.text('10:00'), findsOneWidget);
   });
 
   testWidgets('refreshes after schedule save', (tester) async {
     await pumpHome(tester);
-    expect(find.text('Set a work schedule'), findsOneWidget);
+    expect(find.text('Set your workday'), findsOneWidget);
 
-    await container.read(recessActionsProvider).saveSchedule(
+    await container!.read(recessActionsProvider).saveSchedule(
           const WorkSchedule(
             startMinutes: 9 * 60,
             endMinutes: 17 * 60,
@@ -244,8 +364,7 @@ void main() {
         );
     await tester.pumpAndSettle();
 
-    expect(find.text('Your workday is 9:00 AM–5:00 PM.'), findsOneWidget);
-    expect(find.text('Next Recess: 10:00 AM'), findsOneWidget);
+    expect(find.text('10:00'), findsOneWidget);
   });
 }
 

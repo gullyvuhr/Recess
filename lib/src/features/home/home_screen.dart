@@ -1,10 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models.dart';
 import '../../core/insights.dart';
+import '../../core/models.dart';
 import '../../core/providers.dart';
+
+String formatRecessCountdown(DateTime scheduledAt, DateTime now) {
+  final remaining = scheduledAt.difference(now);
+  if (remaining <= Duration.zero) return 'Ready when you are';
+  if (remaining.inSeconds < 60) return 'In less than a minute';
+  final hours = remaining.inHours;
+  final minutes = remaining.inMinutes.remainder(60);
+  if (hours == 0) return 'In $minutes ${minutes == 1 ? 'minute' : 'minutes'}';
+  if (minutes == 0) return 'In $hours ${hours == 1 ? 'hour' : 'hours'}';
+  return 'In $hours hr $minutes min';
+}
+
+String formatTodayProgress(TodayInsightMetrics metrics) {
+  final completed = metrics.completed;
+  final movementMinutes = metrics.completedMovementDuration.inMinutes;
+  return '$completed ${completed == 1 ? 'recess' : 'recesses'} · '
+      '$movementMinutes movement ${movementMinutes == 1 ? 'minute' : 'minutes'}';
+}
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -15,11 +35,25 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _acting = false;
+  Timer? _countdownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _ringBells() async {
@@ -55,13 +89,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = ref.watch(todayProgressProvider);
     final schedule = ref.watch(scheduleProvider);
     final homeStatus = ref.watch(homeRecessStatusProvider);
     final insights = ref.watch(insightProvider);
     final openSessionState = ref.watch(openSessionProvider);
-    final openSession = openSessionState.valueOrNull;
-    final hasActiveSession = openSession?.status == RecessSessionStatus.active;
+    final hasActiveSession =
+        openSessionState.valueOrNull?.status == RecessSessionStatus.active;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recess'),
@@ -73,163 +107,307 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: const Icon(Icons.history),
           ),
           IconButton(
-            tooltip: 'Edit work schedule',
-            onPressed: () => context.go('/onboarding?edit=true'),
-            icon: const Icon(Icons.schedule_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(todayProgressProvider);
           ref.invalidate(scheduleProvider);
           ref.invalidate(openSessionProvider);
           ref.invalidate(insightProvider);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           children: [
-            Text('How about a little space?',
-                style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            schedule.when(
-              data: (value) => value == null
-                  ? const Text('Set a work schedule')
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Your workday is ${_time(context, value.startMinutes)}–${_time(context, value.endMinutes)}.',
-                        ),
-                        const SizedBox(height: 4),
-                        homeStatus.when(
-                          data: (status) => Text(_nextRecess(context, status)),
-                          loading: () => const Text('Loading next Recess…'),
-                          error: (_, __) => const Text(
-                            'No more Recesses scheduled today',
-                          ),
-                        ),
-                      ],
-                    ),
-              loading: () => const Text('Loading your schedule…'),
-              error: (_, __) => const Text('Schedule unavailable'),
+            _NextRecessHero(
+              schedule: schedule,
+              status: homeStatus,
+              now: ref.watch(clockProvider)(),
+              acting: _acting,
+              loadingSession: openSessionState.isLoading,
+              hasActiveSession: hasActiveSession,
+              onStart: _startRecess,
+              onRing: _ringBells,
+              onConfigure: () => context.go('/onboarding?edit=true'),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed:
-                  _acting || openSessionState.isLoading || hasActiveSession
-                      ? null
-                      : _ringBells,
-              icon: const Icon(Icons.notifications_active_outlined),
-              label: const Padding(
-                  padding: EdgeInsets.all(14), child: Text('Bells')),
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 14),
+            _SectionTitle('Today'),
+            const SizedBox(height: 6),
+            insights.when(
+              data: (value) => _TodayProgress(metrics: value.today),
+              loading: () => const _LoadingBlock(),
+              error: (_, __) => const Text('Today\'s progress is unavailable.'),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed:
-                  _acting || openSessionState.isLoading ? null : _startRecess,
-              icon: const Icon(Icons.directions_walk),
-              label: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  openSessionState.isLoading
-                      ? 'Loading Recess…'
-                      : hasActiveSession
-                          ? 'Resume Recess'
-                          : 'Start Recess',
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
-            Text("Today's progress",
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            progress.when(
-              data: (value) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _Stat(value: value.started, label: 'Started'),
-                        _Stat(value: value.completed, label: 'Completed'),
-                        _Stat(
-                          value: insights.valueOrNull?.today.deferred ??
-                              value.rainChecks,
-                          label: 'Deferred',
-                        ),
-                      ]),
-                ),
-              ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Progress unavailable'),
-            ),
-            const SizedBox(height: 28),
-            Text('Insights', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 14),
+            _SectionTitle('Insight'),
+            const SizedBox(height: 6),
             insights.when(
               data: (value) => _HomeInsight(summary: value),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Insights unavailable'),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => context.push('/history'),
-                iconAlignment: IconAlignment.end,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('View History'),
-              ),
+              loading: () => const _LoadingBlock(),
+              error: (_, __) => const Text('Insight is unavailable.'),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  String _time(BuildContext context, int minutes) =>
-      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
+class _NextRecessHero extends StatelessWidget {
+  const _NextRecessHero({
+    required this.schedule,
+    required this.status,
+    required this.now,
+    required this.acting,
+    required this.loadingSession,
+    required this.hasActiveSession,
+    required this.onStart,
+    required this.onRing,
+    required this.onConfigure,
+  });
 
-  String _nextRecess(BuildContext context, HomeRecessStatus? status) {
-    if (status == null || status.state == HomeRecessState.noMoreToday) {
-      return 'No more Recesses scheduled today';
-    }
-    if (status.state == HomeRecessState.active) return 'Recess in progress';
-    return 'Next Recess: ${TimeOfDay.fromDateTime(status.scheduledAt!).format(context)}';
+  final AsyncValue<WorkSchedule?> schedule;
+  final AsyncValue<HomeRecessStatus?> status;
+  final DateTime now;
+  final bool acting;
+  final bool loadingSession;
+  final bool hasActiveSession;
+  final VoidCallback onStart;
+  final VoidCallback onRing;
+  final VoidCallback onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = schedule.valueOrNull != null;
+    final current = status.valueOrNull;
+    final scheduledAt = current?.scheduledAt;
+    final active = current?.state == HomeRecessState.active;
+    final loading = schedule.isLoading || status.isLoading;
+    final title = loading
+        ? 'Finding your next Recess'
+        : !configured
+            ? 'Set your workday'
+            : active
+                ? 'Recess in progress'
+                : scheduledAt != null
+                    ? null
+                    : 'All done for today';
+    final detail = loading
+        ? 'Just a moment'
+        : !configured
+            ? 'Choose when Bells should gently arrive.'
+            : active
+                ? 'Take the time you need.'
+                : scheduledAt != null
+                    ? formatRecessCountdown(scheduledAt, now)
+                    : 'There are no more scheduled Recesses today.';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'NEXT RECESS',
+            style: Theme.of(context).textTheme.labelMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          if (scheduledAt != null && !active)
+            _ScheduledTime(scheduledAt: scheduledAt)
+          else
+            Text(
+              title!,
+              style: Theme.of(context).textTheme.headlineLarge,
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 14),
+          if (scheduledAt != null && !active) ...[
+            Text(
+              'Your next Recess is in',
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _countdownValue(detail),
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+          ] else
+            Text(
+              detail,
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 20),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 340),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!configured && !loading)
+                    FilledButton.icon(
+                      onPressed: onConfigure,
+                      icon: const Icon(Icons.schedule_outlined),
+                      label: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Set schedule'),
+                      ),
+                    )
+                  else ...[
+                    FilledButton.icon(
+                      onPressed: acting || loadingSession ? null : onStart,
+                      icon: Icon(
+                        active ? Icons.play_arrow : Icons.directions_walk,
+                      ),
+                      label: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(active ? 'Resume Recess' : 'Start Now'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: acting || loadingSession || hasActiveSession
+                          ? null
+                          : onRing,
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: const Text('Bells'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
+  String _countdownValue(String value) =>
+      value.startsWith('In ') ? value.substring(3) : value;
+}
+
+class _ScheduledTime extends StatelessWidget {
+  const _ScheduledTime({required this.scheduledAt});
+
+  final DateTime scheduledAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final use24HourTime = MediaQuery.alwaysUse24HourFormatOf(context);
+    final time = TimeOfDay.fromDateTime(scheduledAt);
+    final hour = use24HourTime
+        ? time.hour.toString().padLeft(2, '0')
+        : time.hourOfPeriod.toString();
+    final value = '$hour:${time.minute.toString().padLeft(2, '0')}';
+    final period = use24HourTime
+        ? null
+        : time.period == DayPeriod.am
+            ? MaterialLocalizations.of(context).anteMeridiemAbbreviation
+            : MaterialLocalizations.of(context).postMeridiemAbbreviation;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final responsiveSize =
+            (constraints.maxWidth * 0.22).clamp(56.0, 82.0).toDouble();
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontSize: responsiveSize,
+                      height: 1,
+                    ),
+              ),
+              if (period != null) ...[
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Text(
+                    period,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TodayProgress extends StatelessWidget {
+  const _TodayProgress({required this.metrics});
+  final TodayInsightMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.check_circle_outline, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(formatTodayProgress(metrics))),
+          ],
+        ),
+      );
 }
 
 class _HomeInsight extends StatelessWidget {
   const _HomeInsight({required this.summary});
-
   final InsightSummary summary;
 
   @override
   Widget build(BuildContext context) {
     final observation = summary.observations.firstOrNull;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Text(
-          observation?.description ??
-              'More insights will appear as Recess remembers your activity.',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb_outline, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(observation?.description ??
+                'A useful observation will appear as your Recess history grows.'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-  final int value;
-  final String label;
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Text('$value', style: Theme.of(context).textTheme.headlineMedium),
-        Text(label)
-      ]);
+  Widget build(BuildContext context) =>
+      Text(text, style: Theme.of(context).textTheme.titleMedium);
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+        height: 72,
+        child: Center(child: CircularProgressIndicator()),
+      );
 }

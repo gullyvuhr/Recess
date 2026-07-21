@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,13 @@ class RecessScreen extends ConsumerStatefulWidget {
 class _RecessScreenState extends ConsumerState<RecessScreen> {
   bool _done = false;
   bool _completing = false;
+  Timer? _returnTimer;
+
+  @override
+  void dispose() {
+    _returnTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _complete() async {
     if (_completing) return;
@@ -35,6 +44,9 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
         );
       }
       setState(() => _done = true);
+      _returnTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) context.go('/home');
+      });
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,33 +63,7 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
   @override
   Widget build(BuildContext context) {
     if (_done) {
-      return Scaffold(
-        body: _ScrollableBody(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.wb_sunny_outlined, size: 82),
-              const SizedBox(height: 24),
-              Text(
-                'You made some room.',
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'That counts. Come back whenever the next good moment appears.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              FilledButton(
-                onPressed: () => context.go('/home'),
-                child: const Text('Back to today'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const _CompletionTransition();
     }
     final session = ref.watch(sessionProvider(widget.sessionId));
     return session.when(
@@ -92,6 +78,40 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => const _InvalidSession(),
+    );
+  }
+}
+
+class _CompletionTransition extends ConsumerWidget {
+  const _CompletionTransition();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(homeRecessStatusProvider).valueOrNull;
+    final next = status?.scheduledAt;
+    return Scaffold(
+      body: _ScrollableBody(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_outline, size: 52),
+            const SizedBox(height: 20),
+            Text(
+              'Nice work.',
+              style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              next == null
+                  ? 'See you next time.'
+                  : 'See you at ${TimeOfDay.fromDateTime(next).format(context)}.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

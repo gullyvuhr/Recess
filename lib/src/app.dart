@@ -10,6 +10,7 @@ import 'features/history/history_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/recess/bell_response_screen.dart';
 import 'features/recess/recess_screen.dart';
+import 'features/settings/settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -23,6 +24,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
+      GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       GoRoute(
         path: '/bell/:sessionId',
         builder: (_, state) => BellResponseScreen(

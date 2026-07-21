@@ -58,10 +58,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('View History'), 200);
-    await tester.drag(find.byType(ListView), const Offset(0, -80));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('View History'));
+    await tester.tap(find.byTooltip('History'));
     await tester.pumpAndSettle();
 
     expect(find.text('Seven-day summary'), findsOneWidget);

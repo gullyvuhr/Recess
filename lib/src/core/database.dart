@@ -200,6 +200,88 @@ class RecessDatabase extends GeneratedDatabase {
     );
   }
 
+  Future<RecessPreferences> preferences() async {
+    final duration = int.tryParse(await setting('recess_duration') ?? '');
+    final difficulty = await setting('exercise_difficulty');
+    final sound = await setting('bell_sound');
+    final quietEnabled = await setting('quiet_hours_enabled');
+    final quietStart = int.tryParse(await setting('quiet_hours_start') ?? '');
+    final quietEnd = int.tryParse(await setting('quiet_hours_end') ?? '');
+    final notifications = await setting('notifications_enabled');
+    return RecessPreferences(
+      durationMinutes: RecessPreferences.supportedDurations.contains(duration)
+          ? duration!
+          : 5,
+      exerciseDifficulty: _enumByName(
+        ExerciseDifficulty.values,
+        difficulty,
+        ExerciseDifficulty.standard,
+      ),
+      bellSound: _enumByName(
+        BellSound.values,
+        sound,
+        BellSound.schoolBell,
+      ),
+      quietHoursEnabled: quietEnabled == 'true',
+      quietHoursStartMinutes: quietStart != null &&
+              quietStart >= 0 &&
+              quietStart < Duration.minutesPerDay
+          ? quietStart
+          : 22 * 60,
+      quietHoursEndMinutes:
+          quietEnd != null && quietEnd >= 0 && quietEnd < Duration.minutesPerDay
+              ? quietEnd
+              : 7 * 60,
+      notificationsEnabled: notifications != 'false',
+    );
+  }
+
+  Future<void> savePreferences(RecessPreferences preferences) async {
+    if (!RecessPreferences.supportedDurations
+        .contains(preferences.durationMinutes)) {
+      throw ArgumentError.value(
+        preferences.durationMinutes,
+        'durationMinutes',
+        'Unsupported Recess duration.',
+      );
+    }
+    await transaction(() async {
+      await setSetting('recess_duration', '${preferences.durationMinutes}');
+      await setSetting(
+        'exercise_difficulty',
+        preferences.exerciseDifficulty.name,
+      );
+      await setSetting('bell_sound', preferences.bellSound.name);
+      await setSetting(
+        'quiet_hours_enabled',
+        '${preferences.quietHoursEnabled}',
+      );
+      await setSetting(
+        'quiet_hours_start',
+        '${preferences.quietHoursStartMinutes}',
+      );
+      await setSetting(
+        'quiet_hours_end',
+        '${preferences.quietHoursEndMinutes}',
+      );
+      await setSetting(
+        'notifications_enabled',
+        '${preferences.notificationsEnabled}',
+      );
+    });
+  }
+
+  T _enumByName<T extends Enum>(
+    List<T> values,
+    String? name,
+    T fallback,
+  ) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return fallback;
+  }
+
   Future<RecessSession> createSession({
     required DateTime scheduledAt,
     required DateTime createdAt,

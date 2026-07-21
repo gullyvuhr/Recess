@@ -8,6 +8,52 @@ enum RecessSessionStatus {
 
 enum RecessDeferralType { fiveMinutes, afterThis }
 
+enum ExerciseDifficulty { easy, standard, challenging }
+
+enum BellSound { schoolBell, coachWhistle, gentleChime }
+
+class RecessPreferences {
+  const RecessPreferences({
+    this.durationMinutes = 5,
+    this.exerciseDifficulty = ExerciseDifficulty.standard,
+    this.bellSound = BellSound.schoolBell,
+    this.quietHoursEnabled = false,
+    this.quietHoursStartMinutes = 22 * 60,
+    this.quietHoursEndMinutes = 7 * 60,
+    this.notificationsEnabled = true,
+  });
+
+  static const supportedDurations = [3, 5, 10, 15];
+
+  final int durationMinutes;
+  final ExerciseDifficulty exerciseDifficulty;
+  final BellSound bellSound;
+  final bool quietHoursEnabled;
+  final int quietHoursStartMinutes;
+  final int quietHoursEndMinutes;
+  final bool notificationsEnabled;
+
+  RecessPreferences copyWith({
+    int? durationMinutes,
+    ExerciseDifficulty? exerciseDifficulty,
+    BellSound? bellSound,
+    bool? quietHoursEnabled,
+    int? quietHoursStartMinutes,
+    int? quietHoursEndMinutes,
+    bool? notificationsEnabled,
+  }) =>
+      RecessPreferences(
+        durationMinutes: durationMinutes ?? this.durationMinutes,
+        exerciseDifficulty: exerciseDifficulty ?? this.exerciseDifficulty,
+        bellSound: bellSound ?? this.bellSound,
+        quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
+        quietHoursStartMinutes:
+            quietHoursStartMinutes ?? this.quietHoursStartMinutes,
+        quietHoursEndMinutes: quietHoursEndMinutes ?? this.quietHoursEndMinutes,
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      );
+}
+
 enum HomeRecessState { scheduled, active, noMoreToday }
 
 class HomeRecessStatus {

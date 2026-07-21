@@ -50,6 +50,9 @@ final historyProvider =
     FutureProvider.autoDispose.family<HistoryData, HistoryPeriod>(
   (ref, period) => ref.watch(historyServiceProvider).load(period),
 );
+final recentCompletedProvider = FutureProvider<List<HistorySession>>(
+  (ref) => ref.watch(historyServiceProvider).loadRecentCompleted(),
+);
 final insightServiceProvider = Provider(
   (ref) => InsightService(
     database: ref.watch(databaseProvider),
@@ -72,6 +75,22 @@ final sessionServiceProvider = Provider(
 final scheduleProvider = FutureProvider<WorkSchedule?>(
   (ref) => ref.watch(databaseProvider).schedule(),
 );
+final preferencesProvider = FutureProvider<RecessPreferences>(
+  (ref) => ref.watch(databaseProvider).preferences(),
+);
+
+class PreferencesActions {
+  const PreferencesActions(this.ref);
+
+  final Ref ref;
+
+  Future<void> save(RecessPreferences preferences) async {
+    await ref.read(databaseProvider).savePreferences(preferences);
+    ref.invalidate(preferencesProvider);
+  }
+}
+
+final preferencesActionsProvider = Provider(PreferencesActions.new);
 final todayProgressProvider = FutureProvider<TodayProgress>(
   (ref) => ref.watch(databaseProvider).todayProgress(),
 );
@@ -187,6 +206,7 @@ class RecessActions {
     ref.invalidate(todayProgressProvider);
     ref.invalidate(openSessionProvider);
     ref.invalidate(historyProvider);
+    ref.invalidate(recentCompletedProvider);
     ref.invalidate(insightProvider);
     return result;
   }
