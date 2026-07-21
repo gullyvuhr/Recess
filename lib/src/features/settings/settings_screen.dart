@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/providers.dart';
+import '../../core/bell_audio.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -70,15 +71,15 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.notifications_active_outlined,
               title: 'Bell sound',
               value: value.bellSound,
-              items: const {
-                BellSound.schoolBell: 'School Bell',
-                BellSound.coachWhistle: 'Coach Whistle',
-                BellSound.gentleChime: 'Gentle Chime',
+              items: {
+                for (final sound in BellSound.values)
+                  sound: sound.definition.label,
               },
-              onChanged: (sound) => _save(
-                ref,
-                value.copyWith(bellSound: sound),
-              ),
+              onChanged: (sound) async {
+                await _save(ref, value.copyWith(bellSound: sound));
+                await ref.read(bellPreviewPlayerProvider).play(sound);
+                await ref.read(recessActionsProvider).refreshBellSound();
+              },
             ),
             const Divider(),
             const _SectionLabel('Quiet hours'),

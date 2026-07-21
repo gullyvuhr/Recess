@@ -6,6 +6,9 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'bell_audio.dart';
+import 'models.dart';
+
 abstract interface class BellNotifications {
   Stream<String> get openedPayloads;
 
@@ -13,9 +16,17 @@ abstract interface class BellNotifications {
 
   Future<bool> requestPermission();
 
-  Future<bool> scheduleCadenceBell(int sessionId, DateTime scheduledAt);
+  Future<bool> scheduleCadenceBell(
+    int sessionId,
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  });
 
-  Future<bool> scheduleDeferredBell(int sessionId, DateTime scheduledAt);
+  Future<bool> scheduleDeferredBell(
+    int sessionId,
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  });
 
   Future<void> cancelDeferredBell();
 
@@ -23,7 +34,11 @@ abstract interface class BellNotifications {
 
   Future<List<PendingCadenceBell>> pendingCadenceBells();
 
-  Future<bool> ringBells(int sessionId, {required bool deferred});
+  Future<bool> ringBells(
+    int sessionId, {
+    required bool deferred,
+    BellSound sound = BellSound.schoolBell,
+  });
 }
 
 class PendingCadenceBell {
@@ -101,42 +116,49 @@ class NotificationService implements BellNotifications {
     return payload;
   }
 
-  static const _details = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'recess_reminders',
-      'Recess reminders',
-      channelDescription: 'Gentle reminders to take a recess',
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
+  static NotificationDetails detailsFor(BellSound sound) => NotificationDetails(
+        android: AndroidNotificationDetails(
+          sound.definition.androidChannelId,
+          'Recess reminders',
+          channelDescription: 'Gentle reminders to take a recess',
+          importance: Importance.high,
+          priority: Priority.high,
+          sound: RawResourceAndroidNotificationSound(
+            sound.definition.androidResourceName,
+          ),
+        ),
+        iOS: DarwinNotificationDetails(sound: sound.definition.iosFileName),
+      );
 
   @override
   Future<bool> scheduleCadenceBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async {
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async {
     return _safeSchedule(
       id: cadenceNotificationId(scheduledAt),
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: false,
       repeatsDaily: false,
+      sound: sound,
     );
   }
 
   @override
   Future<bool> scheduleDeferredBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async {
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async {
     return _safeSchedule(
       id: deferredBellNotificationId,
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: true,
       repeatsDaily: false,
+      sound: sound,
     );
   }
 
@@ -146,6 +168,7 @@ class NotificationService implements BellNotifications {
     required DateTime scheduledAt,
     required bool deferred,
     required bool repeatsDaily,
+    required BellSound sound,
   }) async {
     try {
       if (!await _canNotify()) return false;
@@ -154,7 +177,7 @@ class NotificationService implements BellNotifications {
         'Bells',
         'It might be a good moment for recess.',
         tz.TZDateTime.from(scheduledAt, tz.local),
-        _details,
+        detailsFor(sound),
         payload: deferred ? 'bell:deferred:$sessionId' : 'bell:$sessionId',
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: repeatsDaily ? DateTimeComponents.time : null,
@@ -228,14 +251,18 @@ class NotificationService implements BellNotifications {
       );
 
   @override
-  Future<bool> ringBells(int sessionId, {required bool deferred}) async {
+  Future<bool> ringBells(
+    int sessionId, {
+    required bool deferred,
+    BellSound sound = BellSound.schoolBell,
+  }) async {
     try {
       if (!await _canNotify()) return false;
       await _plugin.show(
         immediateBellNotificationId,
         'Bells',
         'It might be a good moment for recess.',
-        _details,
+        detailsFor(sound),
         payload:
             deferred ? 'bell:deferred:$sessionId' : 'bell:immediate:$sessionId',
       );

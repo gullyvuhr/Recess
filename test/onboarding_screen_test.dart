@@ -160,13 +160,19 @@ class FakeNotifications implements BellNotifications {
   Future<bool> requestPermission() async => true;
 
   @override
-  Future<bool> ringBells(int sessionId, {required bool deferred}) async => true;
+  Future<bool> ringBells(
+    int sessionId, {
+    required bool deferred,
+    BellSound sound = BellSound.schoolBell,
+  }) async =>
+      true;
 
   @override
   Future<bool> scheduleCadenceBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async {
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async {
     cadence.add(scheduledAt);
     return true;
   }
@@ -174,8 +180,9 @@ class FakeNotifications implements BellNotifications {
   @override
   Future<bool> scheduleDeferredBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async =>
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async =>
       true;
 
   @override

@@ -1,146 +1,345 @@
 [
   {
-    "id": "shoulder-rolls",
-    "title": "Shoulder Rolls",
-    "instruction": "Roll your shoulders slowly backward, then forward, letting your arms stay loose.",
-    "durationMinutes": 2,
-    "category": "movement",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "room-lap",
-    "title": "Take a Lap",
-    "instruction": "Walk one easy lap around your room, floor, or nearby space without checking a screen.",
-    "durationMinutes": 3,
-    "category": "movement",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "shake-it-out",
-    "title": "Shake It Out",
-    "instruction": "Stand up and gently shake out your hands, arms, legs, and shoulders.",
-    "durationMinutes": 2,
-    "category": "movement",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "fresh-air-steps",
-    "title": "Fresh-Air Steps",
-    "instruction": "Step outside and walk at an unhurried pace, noticing the air as you move.",
-    "durationMinutes": 5,
-    "category": "movement",
-    "availableIndoors": false,
-    "availableOutdoors": true
-  },
-  {
-    "id": "long-exhale",
-    "title": "Long Exhale",
-    "instruction": "Breathe in comfortably, then let each exhale last a little longer than the inhale.",
-    "durationMinutes": 2,
+    "id": "deep-breathing",
+    "title": "Deep Breathing",
+    "description": "Take slow, comfortable breaths and let each exhale soften your shoulders.",
     "category": "breathing",
-    "availableIndoors": true,
-    "availableOutdoors": true
+    "executionType": "timed",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
   },
   {
     "id": "box-breathing",
-    "title": "Four-Sided Breath",
-    "instruction": "Inhale, pause, exhale, and pause again for an easy count of four each.",
-    "durationMinutes": 3,
+    "title": "Box Breathing",
+    "description": "Inhale, pause, exhale, and pause again for an easy count of four.",
     "category": "breathing",
-    "availableIndoors": true,
-    "availableOutdoors": true
+    "executionType": "timed",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
   },
   {
-    "id": "three-soft-breaths",
-    "title": "Three Soft Breaths",
-    "instruction": "Take three quiet breaths and relax your jaw a little more with each exhale.",
-    "durationMinutes": 1,
-    "category": "breathing",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "open-air-breath",
-    "title": "Open-Air Breath",
-    "instruction": "Step outside and take five slow breaths while feeling the temperature of the air.",
-    "durationMinutes": 2,
-    "category": "breathing",
-    "availableIndoors": false,
-    "availableOutdoors": true
-  },
-  {
-    "id": "five-things",
-    "title": "Notice Five Things",
-    "instruction": "Look around slowly and name five ordinary things you can see right now.",
-    "durationMinutes": 2,
-    "category": "mindfulness",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "listen-near-far",
-    "title": "Listen Near and Far",
-    "instruction": "Notice one sound nearby, one farther away, and the quiet between them.",
-    "durationMinutes": 3,
-    "category": "mindfulness",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "screenless-minute",
-    "title": "A Screenless Minute",
-    "instruction": "Set your device down and let one minute pass without trying to fill it.",
-    "durationMinutes": 1,
-    "category": "mindfulness",
-    "availableIndoors": true,
-    "availableOutdoors": true
-  },
-  {
-    "id": "watch-the-sky",
-    "title": "Watch the Sky",
-    "instruction": "Step outside and spend a few minutes watching the sky without naming what you see.",
-    "durationMinutes": 4,
-    "category": "mindfulness",
-    "availableIndoors": false,
-    "availableOutdoors": true
-  },
-  {
-    "id": "neck-release",
-    "title": "Neck Release",
-    "instruction": "Let one ear drift toward one shoulder, pause gently, then switch sides.",
-    "durationMinutes": 2,
+    "id": "neck-stretch",
+    "title": "Neck Stretch",
+    "description": "Let one ear move gently toward one shoulder, then switch sides.",
     "category": "stretch",
-    "availableIndoors": true,
-    "availableOutdoors": true
+    "executionType": "hold",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
   },
   {
-    "id": "doorway-chest",
-    "title": "Open the Chest",
-    "instruction": "Rest your forearms on a doorway and lean forward gently until your chest opens.",
-    "durationMinutes": 2,
+    "id": "shoulder-rolls",
+    "title": "Shoulder Rolls",
+    "description": "Roll your shoulders slowly backward, then forward, with loose arms.",
+    "category": "mobility",
+    "executionType": "repetitions",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
+  },
+  {
+    "id": "wrist-stretch",
+    "title": "Wrist Stretch",
+    "description": "Extend one arm and gently draw the fingers back, then switch hands.",
     "category": "stretch",
-    "availableIndoors": true,
-    "availableOutdoors": false
+    "executionType": "hold",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
   },
   {
     "id": "seated-twist",
     "title": "Seated Twist",
-    "instruction": "Sit tall, turn gently to one side, breathe, and repeat on the other side.",
-    "durationMinutes": 3,
-    "category": "stretch",
-    "availableIndoors": true,
-    "availableOutdoors": true
+    "description": "Sit tall, turn gently to each side, and keep your breathing easy.",
+    "category": "mobility",
+    "executionType": "repetitions",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
   },
   {
-    "id": "standing-side-reach",
-    "title": "Reach Sideways",
-    "instruction": "Stand tall, reach one arm overhead, and lean gently to each side.",
-    "durationMinutes": 2,
+    "id": "standing-reach",
+    "title": "Standing Reach",
+    "description": "Stand tall and reach both arms overhead before lowering them slowly.",
     "category": "stretch",
-    "availableIndoors": true,
-    "availableOutdoors": true
+    "executionType": "repetitions",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "gentle-side-bend",
+    "title": "Gentle Side Bend",
+    "description": "Reach one arm overhead and lean gently to each side.",
+    "category": "stretch",
+    "executionType": "repetitions",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "ankle-circles",
+    "title": "Ankle Circles",
+    "description": "Lift one foot slightly and circle the ankle slowly in both directions.",
+    "category": "mobility",
+    "executionType": "repetitions",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
+  },
+  {
+    "id": "eye-break",
+    "title": "Eye Break",
+    "description": "Look away from the screen and rest your focus on something farther away.",
+    "category": "mobility",
+    "executionType": "timed",
+    "difficulty": "easy",
+    "estimatedDuration": 3,
+    "requiresStanding": false,
+    "equipmentRequired": false
+  },
+  {
+    "id": "five-minute-walk",
+    "title": "Walking",
+    "description": "Walk at a comfortable pace and leave your screen behind.",
+    "category": "walking",
+    "executionType": "timed",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "air-squats",
+    "title": "Air Squats",
+    "description": "Complete controlled bodyweight squats at a steady pace.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "lunges",
+    "title": "Lunges",
+    "description": "Alternate comfortable forward lunges with a steady, upright posture.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "wall-pushups",
+    "title": "Wall Pushups",
+    "description": "Place your hands on a wall and complete slow, controlled pushups.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "hip-mobility",
+    "title": "Hip Mobility",
+    "description": "Move through slow hip circles, changing direction halfway through.",
+    "category": "mobility",
+    "executionType": "timed",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "hamstring-stretch",
+    "title": "Hamstring Stretch",
+    "description": "Extend one leg, hinge forward gently, then switch sides.",
+    "category": "stretch",
+    "executionType": "hold",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "calf-raises",
+    "title": "Calf Raises",
+    "description": "Rise onto your toes, pause briefly, and lower with control.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "march-in-place",
+    "title": "March in Place",
+    "description": "March steadily in place and let your arms swing naturally.",
+    "category": "cardio",
+    "executionType": "timed",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "torso-rotation",
+    "title": "Torso Rotation",
+    "description": "Stand tall and rotate gently from side to side with relaxed arms.",
+    "category": "mobility",
+    "executionType": "repetitions",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "standing-balance",
+    "title": "Standing Balance",
+    "description": "Balance on one foot, reset, and repeat on the other side.",
+    "category": "mobility",
+    "executionType": "hold",
+    "difficulty": "standard",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "jumping-jacks",
+    "title": "Low-Impact Jacks",
+    "description": "Step one foot out while raising both arms, return to center, then switch sides.",
+    "category": "cardio",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "mountain-climbers",
+    "title": "Incline Mountain Climbers",
+    "description": "Place both hands on a stable desk, keep your body long, and alternate drawing each knee forward.",
+    "category": "cardio",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "burpees",
+    "title": "Standing Burpees",
+    "description": "Reach overhead, squat toward chair height, step each foot back, then step in and stand tall.",
+    "category": "cardio",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "high-knees",
+    "title": "Standing Knee Drives",
+    "description": "Drive one knee toward the opposite hand, return to standing, and alternate sides.",
+    "category": "cardio",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "plank",
+    "title": "Plank",
+    "description": "Brace your hands on a stable desk or wall, keep a straight line from shoulders to heels, and hold.",
+    "category": "strength",
+    "executionType": "hold",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": false,
+    "equipmentRequired": false
+  },
+  {
+    "id": "split-squats",
+    "title": "Split Squats",
+    "description": "Use a staggered stance for controlled repetitions on each side.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "fast-stair-climb",
+    "title": "Brisk March Intervals",
+    "description": "March briskly for 30 seconds, then march gently for 30 seconds, and alternate those intervals.",
+    "category": "cardio",
+    "executionType": "timed",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "pushups",
+    "title": "Desk Pushups",
+    "description": "Place your hands on a stable desk, keep your body straight, lower your chest, and press away.",
+    "category": "strength",
+    "executionType": "repetitions",
+    "difficulty": "challenging",
+    "estimatedDuration": 5,
+    "requiresStanding": true,
+    "equipmentRequired": false
+  },
+  {
+    "id": "bodyweight-circuit",
+    "title": "Bodyweight Circuit",
+    "description": "Complete each movement in order with steady, controlled form.",
+    "category": "strength",
+    "executionType": "sequence",
+    "difficulty": "challenging",
+    "estimatedDuration": 10,
+    "requiresStanding": true,
+    "equipmentRequired": false,
+    "sequenceSteps": [
+      "10 air squats",
+      "8 pushups at a wall or stable desk",
+      "10 alternating reverse lunges",
+      "20-second incline plank at a wall or stable desk"
+    ],
+    "restSecondsBetweenRounds": 30
+  },
+  {
+    "id": "dynamic-mobility-flow",
+    "title": "Dynamic Mobility Flow",
+    "description": "Complete each mobility movement in order with a comfortable range of motion.",
+    "category": "mobility",
+    "executionType": "sequence",
+    "difficulty": "challenging",
+    "estimatedDuration": 10,
+    "requiresStanding": true,
+    "equipmentRequired": false,
+    "sequenceSteps": [
+      "10 arm circles",
+      "10 torso rotations",
+      "8 alternating reverse lunges",
+      "10 hip hinges"
+    ]
   }
 ]

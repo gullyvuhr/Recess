@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recess/src/core/models.dart';
 import 'package:recess/src/exercises/exercise.dart';
 import 'package:recess/src/exercises/exercise_repository.dart';
 import 'package:recess/src/exercises/exercise_service.dart';
@@ -10,139 +10,194 @@ import 'package:recess/src/exercises/exercise_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('launch catalog contains the scoped local exercise library', () async {
+  test('curated library contains ten exercises per difficulty', () async {
     final exercises = await AssetExerciseRepository().load();
 
-    expect(exercises.length, inInclusiveRange(15, 20));
+    expect(exercises, hasLength(30));
+    for (final difficulty in ExerciseDifficulty.values) {
+      expect(
+        exercises.where((exercise) => exercise.difficulty == difficulty),
+        hasLength(10),
+      );
+    }
     expect(
       exercises.map((exercise) => exercise.category).toSet(),
       ExerciseCategory.values.toSet(),
     );
+    expect(
+      exercises.map((exercise) => exercise.executionType).toSet(),
+      ExerciseExecutionType.values.toSet(),
+    );
+    expect(
+        exercises.every((exercise) => exercise.description.isNotEmpty), isTrue);
+    expect(
+        exercises.every((exercise) => exercise.estimatedDuration > 0), isTrue);
+    expect(
+      exercises
+          .where(
+            (exercise) =>
+                exercise.executionType == ExerciseExecutionType.sequence,
+          )
+          .every((exercise) => exercise.sequenceSteps.isNotEmpty),
+      isTrue,
+    );
   });
 
-  test('repository parses and validates exercise JSON', () async {
+  test('repository parses the complete metadata model', () async {
     final repository = AssetExerciseRepository(
-      bundle: StringAssetBundle(_validCatalogJson),
+      bundle: StringAssetBundle('[$_easyJson]'),
     );
 
-    final exercises = await repository.load();
+    final exercise = (await repository.load()).single;
 
-    expect(exercises, hasLength(2));
-    expect(exercises.first.id, 'indoor-move');
-    expect(exercises.first.category, ExerciseCategory.movement);
-    expect(exercises.first.durationMinutes, 2);
-    expect(exercises.first.availableIndoors, isTrue);
-    expect(exercises.first.availableOutdoors, isFalse);
+    expect(exercise.id, 'easy-stretch');
+    expect(exercise.description, 'Reach gently.');
+    expect(exercise.category, ExerciseCategory.stretch);
+    expect(exercise.difficulty, ExerciseDifficulty.easy);
+    expect(exercise.executionType, ExerciseExecutionType.hold);
+    expect(exercise.estimatedDuration, 3);
+    expect(exercise.requiresStanding, isTrue);
+    expect(exercise.equipmentRequired, isFalse);
   });
 
-  test('repository rejects duplicate exercise IDs', () async {
+  test('repository rejects duplicate IDs and malformed metadata', () async {
+    final duplicate = AssetExerciseRepository(
+      bundle: StringAssetBundle('[$_easyJson,$_easyJson]'),
+    );
+    final missingDifficulty = AssetExerciseRepository(
+      bundle: StringAssetBundle('''
+        [{
+          "id": "missing-difficulty",
+          "title": "Missing Difficulty",
+          "description": "Move gently.",
+          "category": "mobility",
+          "estimatedDuration": 3,
+          "requiresStanding": false,
+          "equipmentRequired": false
+        }]
+      '''),
+    );
+
+    await expectLater(duplicate.load(), throwsFormatException);
+    await expectLater(missingDifficulty.load(), throwsFormatException);
+  });
+
+  test('repository rejects a sequence without ordered steps', () async {
     final repository = AssetExerciseRepository(
-      bundle: StringAssetBundle('[$_exerciseJson,$_exerciseJson]'),
+      bundle: StringAssetBundle('''
+        [{
+          "id": "empty-sequence",
+          "title": "Empty Sequence",
+          "description": "Complete each step in order.",
+          "category": "mobility",
+          "executionType": "sequence",
+          "difficulty": "standard",
+          "estimatedDuration": 5,
+          "requiresStanding": true,
+          "equipmentRequired": false,
+          "sequenceSteps": []
+        }]
+      '''),
     );
 
     await expectLater(repository.load(), throwsFormatException);
   });
 
-  test('repository rejects malformed JSON and missing exercise IDs', () async {
-    final malformed = AssetExerciseRepository(
-      bundle: StringAssetBundle('{not-json'),
-    );
-    final missingId = AssetExerciseRepository(
-      bundle: StringAssetBundle('''
-        [{
-          "title": "Missing ID",
-          "instruction": "This entry has no ID.",
-          "durationMinutes": 2,
-          "category": "mindfulness",
-          "availableIndoors": true,
-          "availableOutdoors": true
-        }]
-      '''),
-    );
+  test('selector filters to the requested difficulty', () async {
+    final selector = ExerciseSelector(catalog: _catalog);
 
-    await expectLater(malformed.load(), throwsFormatException);
-    await expectLater(missingId.load(), throwsFormatException);
+    final easy = await selector.select(difficulty: ExerciseDifficulty.easy);
+    final standard =
+        await selector.select(difficulty: ExerciseDifficulty.standard);
+    final challenging =
+        await selector.select(difficulty: ExerciseDifficulty.challenging);
+
+    expect(easy.difficulty, ExerciseDifficulty.easy);
+    expect(standard.difficulty, ExerciseDifficulty.standard);
+    expect(challenging.difficulty, ExerciseDifficulty.challenging);
   });
 
-  test('service randomly selects from the available catalog', () async {
-    final service = ExerciseService(
-      catalog: StaticExerciseCatalog(_exercises),
-      random: PredictableRandom(1),
+  test('selector never repeats the immediately previous exercise', () async {
+    final selector = ExerciseSelector(catalog: _catalog);
+
+    final selected = await selector.select(
+      difficulty: ExerciseDifficulty.easy,
+      previousExerciseId: 'easy-a',
+      recentExerciseIds: const ['easy-a'],
     );
 
-    final selected = await service.select(
-      environment: ExerciseEnvironment.outdoor,
-    );
-
-    expect(selected.id, 'outdoor-breath');
+    expect(selected.id, isNot('easy-a'));
+    expect(selected.id, 'easy-b');
   });
 
-  test('service prevents an immediate repeat when alternatives exist',
-      () async {
-    final service = ExerciseService(
-      catalog: StaticExerciseCatalog(_exercises),
-      random: PredictableRandom(0),
+  test('selector strongly prefers exercises outside recent history', () async {
+    final selector = ExerciseSelector(catalog: _catalog);
+
+    final selected = await selector.select(
+      difficulty: ExerciseDifficulty.easy,
+      recentExerciseIds: const ['easy-a', 'easy-b'],
     );
 
-    final selected = await service.select(
-      environment: ExerciseEnvironment.outdoor,
-      previousExerciseId: 'indoor-move',
-    );
-
-    expect(selected.id, 'outdoor-breath');
+    expect(selected.id, 'easy-c');
   });
 
-  test('repeat prevention keeps uniform access to remaining choices', () async {
-    const catalog = StaticExerciseCatalog([
-      ..._exercises,
+  test('selector chooses the least recent option when all were used', () async {
+    final selector = ExerciseSelector(catalog: _catalog);
+
+    final selected = await selector.select(
+      difficulty: ExerciseDifficulty.easy,
+      recentExerciseIds: const ['easy-c', 'easy-a', 'easy-b'],
+    );
+
+    expect(selected.id, 'easy-b');
+  });
+
+  test('selector falls back to the closest tier without repeating', () async {
+    const sparse = StaticExerciseCatalog([
       Exercise(
-        id: 'outdoor-stretch',
-        title: 'Outdoor Stretch',
-        instruction: 'Stretch outside.',
-        durationMinutes: 2,
-        category: ExerciseCategory.stretch,
-        availableIndoors: false,
-        availableOutdoors: true,
+        id: 'only-easy',
+        title: 'Only Easy',
+        description: 'Move easily.',
+        category: ExerciseCategory.mobility,
+        difficulty: ExerciseDifficulty.easy,
+        estimatedDuration: 3,
+        requiresStanding: false,
+        equipmentRequired: false,
+      ),
+      Exercise(
+        id: 'standard-option',
+        title: 'Standard Option',
+        description: 'Move steadily.',
+        category: ExerciseCategory.mobility,
+        difficulty: ExerciseDifficulty.standard,
+        estimatedDuration: 5,
+        requiresStanding: true,
+        equipmentRequired: false,
       ),
     ]);
-    final firstChoice = ExerciseService(
-      catalog: catalog,
-      random: PredictableRandom(0),
-    );
-    final secondChoice = ExerciseService(
-      catalog: catalog,
-      random: PredictableRandom(1),
+    final selector = ExerciseSelector(catalog: sparse);
+
+    final selected = await selector.select(
+      difficulty: ExerciseDifficulty.easy,
+      previousExerciseId: 'only-easy',
     );
 
-    final selected = await Future.wait([
-      firstChoice.select(
-        environment: ExerciseEnvironment.outdoor,
-        previousExerciseId: 'indoor-move',
-      ),
-      secondChoice.select(
-        environment: ExerciseEnvironment.outdoor,
-        previousExerciseId: 'indoor-move',
-      ),
-    ]);
-
-    expect(
-      selected.map((exercise) => exercise.id).toSet(),
-      {'outdoor-breath', 'outdoor-stretch'},
-    );
+    expect(selected.id, 'standard-option');
   });
 
-  test('indoor selection excludes outdoor-only exercises', () async {
-    final service = ExerciseService(
-      catalog: StaticExerciseCatalog(_exercises),
-      random: PredictableRandom(0),
+  test('identical inputs always produce identical selection', () async {
+    final selector = ExerciseSelector(catalog: _catalog);
+
+    final first = await selector.select(
+      difficulty: ExerciseDifficulty.standard,
+      recentExerciseIds: const ['standard-a'],
+    );
+    final second = await selector.select(
+      difficulty: ExerciseDifficulty.standard,
+      recentExerciseIds: const ['standard-a'],
     );
 
-    final selected = await service.select(
-      environment: ExerciseEnvironment.indoor,
-    );
-
-    expect(selected.id, 'indoor-move');
-    expect(selected.availableIndoors, isTrue);
+    expect(second.id, first.id);
   });
 }
 
@@ -167,62 +222,69 @@ class StaticExerciseCatalog implements ExerciseCatalog {
   Future<List<Exercise>> load() async => exercises;
 }
 
-class PredictableRandom implements Random {
-  PredictableRandom(this.value);
-
-  final int value;
-
-  @override
-  bool nextBool() => value.isEven;
-
-  @override
-  double nextDouble() => 0;
-
-  @override
-  int nextInt(int max) => value % max;
-}
-
-const _exercises = [
+const _catalog = StaticExerciseCatalog([
   Exercise(
-    id: 'indoor-move',
-    title: 'Indoor Move',
-    instruction: 'Move gently.',
-    durationMinutes: 2,
-    category: ExerciseCategory.movement,
-    availableIndoors: true,
-    availableOutdoors: true,
+    id: 'easy-a',
+    title: 'Easy A',
+    description: 'Easy movement A.',
+    category: ExerciseCategory.mobility,
+    difficulty: ExerciseDifficulty.easy,
+    estimatedDuration: 3,
+    requiresStanding: false,
+    equipmentRequired: false,
   ),
   Exercise(
-    id: 'outdoor-breath',
-    title: 'Outdoor Breath',
-    instruction: 'Breathe outside.',
-    durationMinutes: 3,
+    id: 'easy-b',
+    title: 'Easy B',
+    description: 'Easy movement B.',
+    category: ExerciseCategory.stretch,
+    difficulty: ExerciseDifficulty.easy,
+    estimatedDuration: 3,
+    requiresStanding: false,
+    equipmentRequired: false,
+  ),
+  Exercise(
+    id: 'easy-c',
+    title: 'Easy C',
+    description: 'Easy movement C.',
     category: ExerciseCategory.breathing,
-    availableIndoors: false,
-    availableOutdoors: true,
+    difficulty: ExerciseDifficulty.easy,
+    estimatedDuration: 3,
+    requiresStanding: false,
+    equipmentRequired: false,
   ),
-];
+  Exercise(
+    id: 'standard-a',
+    title: 'Standard A',
+    description: 'Standard movement.',
+    category: ExerciseCategory.walking,
+    difficulty: ExerciseDifficulty.standard,
+    estimatedDuration: 5,
+    requiresStanding: true,
+    equipmentRequired: false,
+  ),
+  Exercise(
+    id: 'challenging-a',
+    title: 'Challenging A',
+    description: 'Challenging movement.',
+    category: ExerciseCategory.cardio,
+    difficulty: ExerciseDifficulty.challenging,
+    estimatedDuration: 5,
+    requiresStanding: true,
+    equipmentRequired: false,
+  ),
+]);
 
-const _exerciseJson = '''
+const _easyJson = '''
 {
-  "id": "indoor-move",
-  "title": "Indoor Move",
-  "instruction": "Move gently.",
-  "durationMinutes": 2,
-  "category": "movement",
-  "availableIndoors": true,
-  "availableOutdoors": false
+  "id": "easy-stretch",
+  "title": "Easy Stretch",
+  "description": "Reach gently.",
+  "category": "stretch",
+  "executionType": "hold",
+  "difficulty": "easy",
+  "estimatedDuration": 3,
+  "requiresStanding": true,
+  "equipmentRequired": false
 }
 ''';
-
-const _validCatalogJson = '[$_exerciseJson,${'''
-{
-  "id": "outdoor-breath",
-  "title": "Outdoor Breath",
-  "instruction": "Breathe outside.",
-  "durationMinutes": 3,
-  "category": "breathing",
-  "availableIndoors": false,
-  "availableOutdoors": true
-}
-'''}]';

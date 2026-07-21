@@ -1,32 +1,54 @@
 import 'dart:math';
 
+import '../core/models.dart';
 import 'exercise.dart';
 import 'exercise_repository.dart';
 
-class ExerciseService {
-  ExerciseService({required ExerciseCatalog catalog, Random? random})
-      : _catalog = catalog,
-        _random = random ?? Random();
+class ExerciseSelector {
+  const ExerciseSelector({required ExerciseCatalog catalog, Random? random})
+      : _catalog = catalog;
 
   final ExerciseCatalog _catalog;
-  final Random _random;
 
   Future<Exercise> select({
-    required ExerciseEnvironment environment,
+    ExerciseDifficulty difficulty = ExerciseDifficulty.standard,
+    ExerciseEnvironment? environment,
     String? previousExerciseId,
+    List<String> recentExerciseIds = const [],
   }) async {
-    final available = (await _catalog.load())
-        .where((exercise) => exercise.isAvailableIn(environment))
+    final catalog = await _catalog.load();
+    if (catalog.isEmpty) throw StateError('The exercise catalog is empty.');
+
+    final withoutPrevious = catalog
+        .where((exercise) => exercise.id != previousExerciseId)
         .toList(growable: false);
-    if (available.isEmpty) {
-      throw StateError('No exercises are available for ${environment.name}.');
+    if (withoutPrevious.isEmpty) {
+      throw StateError(
+        'The exercise catalog cannot avoid repeating $previousExerciseId.',
+      );
     }
-    final choices = available.length > 1 && previousExerciseId != null
-        ? available
-            .where((exercise) => exercise.id != previousExerciseId)
-            .toList(growable: false)
-        : available;
-    return choices[_random.nextInt(choices.length)];
+
+    final requested = withoutPrevious
+        .where((exercise) => exercise.difficulty == difficulty)
+        .toList(growable: false);
+    final candidates = requested.isNotEmpty
+        ? requested
+        : _closestDifficulty(withoutPrevious, difficulty);
+
+    final recency = <String, int>{
+      for (var index = 0; index < recentExerciseIds.length; index++)
+        recentExerciseIds[index]: index,
+    };
+    return candidates.reduce((best, candidate) {
+      final bestRank = recency[best.id];
+      final candidateRank = recency[candidate.id];
+      if (bestRank == null && candidateRank != null) return best;
+      if (candidateRank == null && bestRank != null) return candidate;
+      if (bestRank != null && candidateRank != null) {
+        return candidateRank > bestRank ? candidate : best;
+      }
+      return candidate.id.compareTo(best.id) < 0 ? candidate : best;
+    });
   }
 
   Future<Exercise?> findById(String id) async {
@@ -35,4 +57,28 @@ class ExerciseService {
     }
     return null;
   }
+
+  int _difficultyDistance(
+    ExerciseDifficulty value,
+    ExerciseDifficulty requested,
+  ) =>
+      (value.index - requested.index).abs();
+
+  List<Exercise> _closestDifficulty(
+    List<Exercise> exercises,
+    ExerciseDifficulty requested,
+  ) {
+    final closestDistance = exercises
+        .map((exercise) => _difficultyDistance(exercise.difficulty, requested))
+        .reduce(min);
+    return exercises
+        .where(
+          (exercise) =>
+              _difficultyDistance(exercise.difficulty, requested) ==
+              closestDistance,
+        )
+        .toList(growable: false);
+  }
 }
+
+typedef ExerciseService = ExerciseSelector;

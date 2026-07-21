@@ -55,6 +55,73 @@ void main() {
         (await database.session(scheduled.id))!.exerciseId, assignedExerciseId);
   });
 
+  test('persisted difficulty controls the assigned exercise', () async {
+    await database.savePreferences(
+      const RecessPreferences(
+        exerciseDifficulty: ExerciseDifficulty.challenging,
+      ),
+    );
+    service = RecessSessionService(
+      database: database,
+      notifications: notifications,
+      exercises: const ExerciseSelector(
+        catalog: StaticCatalog([
+          Exercise(
+            id: 'easy-option',
+            title: 'Easy Option',
+            description: 'Move gently.',
+            category: ExerciseCategory.mobility,
+            difficulty: ExerciseDifficulty.easy,
+            estimatedDuration: 3,
+          ),
+          Exercise(
+            id: 'challenging-option',
+            title: 'Challenging Option',
+            description: 'Move with purpose.',
+            category: ExerciseCategory.strength,
+            difficulty: ExerciseDifficulty.challenging,
+            estimatedDuration: 5,
+            requiresStanding: true,
+          ),
+        ]),
+      ),
+      clock: () => now,
+    );
+    final scheduled = await _session(database, now);
+
+    final active = await service.start(scheduled.id);
+
+    expect(active.status, RecessSessionStatus.active);
+    expect(active.exerciseId, 'challenging-option');
+  });
+
+  test('manual Bell uses the persisted Bell sound', () async {
+    await database.savePreferences(
+      const RecessPreferences(bellSound: BellSound.gentleChime),
+    );
+    await _session(database, now);
+
+    await service.ringBellNow();
+
+    expect(notifications.manualSounds, [BellSound.gentleChime]);
+  });
+
+  test('scheduled Bells use the persisted Bell sound', () async {
+    await database.savePreferences(
+      const RecessPreferences(bellSound: BellSound.coachWhistle),
+    );
+    await _session(database, now);
+    notifications.cadenceSounds.clear();
+
+    await service.refreshBellSound();
+
+    expect(notifications.cadenceSounds, isNotEmpty);
+    expect(
+      notifications.cadenceSounds,
+      everyElement(BellSound.coachWhistle),
+    );
+  });
+
   test('Give me a minute defers the same session for 5 minutes', () async {
     final scheduled = await _session(database, now);
 
@@ -515,6 +582,9 @@ class FakeNotifications implements BellNotifications {
   final cadence = <ScheduledCall>[];
   final deferred = <ScheduledCall>[];
   final opened = StreamController<String>.broadcast();
+  final manualSounds = <BellSound>[];
+  final cadenceSounds = <BellSound>[];
+  final deferredSounds = <BellSound>[];
   var deferredCancellationCount = 0;
   var cadenceCancellationCount = 0;
   var succeeds = true;
@@ -559,14 +629,22 @@ class FakeNotifications implements BellNotifications {
   Future<bool> requestPermission() async => succeeds;
 
   @override
-  Future<bool> ringBells(int sessionId, {required bool deferred}) async =>
-      succeeds;
+  Future<bool> ringBells(
+    int sessionId, {
+    required bool deferred,
+    BellSound sound = BellSound.schoolBell,
+  }) async {
+    manualSounds.add(sound);
+    return succeeds;
+  }
 
   @override
   Future<bool> scheduleCadenceBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async {
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async {
+    cadenceSounds.add(sound);
     cadence.removeWhere(
       (call) =>
           call.id == NotificationService.cadenceNotificationId(scheduledAt),
@@ -578,8 +656,10 @@ class FakeNotifications implements BellNotifications {
   @override
   Future<bool> scheduleDeferredBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async {
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async {
+    deferredSounds.add(sound);
     deferred.add(ScheduledCall(sessionId, scheduledAt));
     return succeeds;
   }

@@ -1,70 +1,132 @@
-enum ExerciseCategory { movement, breathing, mindfulness, stretch }
+import '../core/models.dart';
+
+enum ExerciseCategory {
+  stretch,
+  mobility,
+  breathing,
+  walking,
+  strength,
+  cardio;
+
+  // Compatibility name for the existing movement-duration insight contract.
+  static const movement = mobility;
+}
 
 enum ExerciseEnvironment { indoor, outdoor }
+
+enum ExerciseExecutionType { timed, repetitions, hold, sequence }
 
 class Exercise {
   const Exercise({
     required this.id,
     required this.title,
-    required this.instruction,
-    required this.durationMinutes,
+    String? description,
+    String? instruction,
     required this.category,
-    required this.availableIndoors,
-    required this.availableOutdoors,
-  });
+    this.executionType = ExerciseExecutionType.timed,
+    this.difficulty = ExerciseDifficulty.standard,
+    int? estimatedDuration,
+    int? durationMinutes,
+    this.requiresStanding = false,
+    this.equipmentRequired = false,
+    this.sequenceSteps = const [],
+    this.restSecondsBetweenRounds,
+    bool? availableIndoors,
+    bool? availableOutdoors,
+  })  : description = description ?? instruction ?? '',
+        estimatedDuration = estimatedDuration ?? durationMinutes ?? 1;
 
   factory Exercise.fromJson(Map<String, Object?> json) {
-    final id = _requiredString(json, 'id');
-    final title = _requiredString(json, 'title');
-    final instruction = _requiredString(json, 'instruction');
-    final duration = json['durationMinutes'];
     final categoryName = _requiredString(json, 'category');
-    final indoors = json['availableIndoors'];
-    final outdoors = json['availableOutdoors'];
-
+    final difficultyName = _requiredString(json, 'difficulty');
+    final executionTypeName = _requiredString(json, 'executionType');
+    final duration = json['estimatedDuration'];
+    final requiresStanding = json['requiresStanding'];
+    final equipmentRequired = json['equipmentRequired'];
     if (duration is! int || duration <= 0) {
       throw const FormatException(
-          'durationMinutes must be a positive integer.');
+        'estimatedDuration must be a positive integer.',
+      );
+    }
+    if (requiresStanding is! bool || equipmentRequired is! bool) {
+      throw const FormatException('Exercise flags must be booleans.');
     }
     final category = ExerciseCategory.values
         .where((value) => value.name == categoryName)
         .firstOrNull;
+    final difficulty = ExerciseDifficulty.values
+        .where((value) => value.name == difficultyName)
+        .firstOrNull;
+    final executionType = ExerciseExecutionType.values
+        .where((value) => value.name == executionTypeName)
+        .firstOrNull;
     if (category == null) {
       throw FormatException('Unknown exercise category: $categoryName.');
     }
-    if (indoors is! bool || outdoors is! bool) {
+    if (difficulty == null) {
+      throw FormatException('Unknown exercise difficulty: $difficultyName.');
+    }
+    if (executionType == null) {
+      throw FormatException('Unknown execution type: $executionTypeName.');
+    }
+    final sequenceSteps = _sequenceSteps(json['sequenceSteps']);
+    final restSecondsBetweenRounds = json['restSecondsBetweenRounds'];
+    if (executionType == ExerciseExecutionType.sequence &&
+        sequenceSteps.isEmpty) {
       throw const FormatException(
-        'Exercise availability values must be booleans.',
+        'Sequence exercises must define at least one ordered step.',
       );
     }
-    if (!indoors && !outdoors) {
+    if (executionType != ExerciseExecutionType.sequence &&
+        sequenceSteps.isNotEmpty) {
       throw const FormatException(
-        'An exercise must be available indoors or outdoors.',
+        'Only sequence exercises may define ordered steps.',
+      );
+    }
+    if (restSecondsBetweenRounds != null &&
+        (restSecondsBetweenRounds is! int || restSecondsBetweenRounds <= 0)) {
+      throw const FormatException(
+        'restSecondsBetweenRounds must be a positive integer.',
       );
     }
     return Exercise(
-      id: id,
-      title: title,
-      instruction: instruction,
-      durationMinutes: duration,
+      id: _requiredString(json, 'id'),
+      title: _requiredString(json, 'title'),
+      description: _requiredString(json, 'description'),
       category: category,
-      availableIndoors: indoors,
-      availableOutdoors: outdoors,
+      difficulty: difficulty,
+      executionType: executionType,
+      estimatedDuration: duration,
+      requiresStanding: requiresStanding,
+      equipmentRequired: equipmentRequired,
+      sequenceSteps: sequenceSteps,
+      restSecondsBetweenRounds: restSecondsBetweenRounds as int?,
     );
   }
 
   final String id;
   final String title;
-  final String instruction;
-  final int durationMinutes;
+  final String description;
   final ExerciseCategory category;
-  final bool availableIndoors;
-  final bool availableOutdoors;
+  final ExerciseDifficulty difficulty;
+  final ExerciseExecutionType executionType;
+  final int estimatedDuration;
+  final bool requiresStanding;
+  final bool equipmentRequired;
+  final List<String> sequenceSteps;
+  final int? restSecondsBetweenRounds;
 
-  bool isAvailableIn(ExerciseEnvironment environment) => switch (environment) {
-        ExerciseEnvironment.indoor => availableIndoors,
-        ExerciseEnvironment.outdoor => availableOutdoors,
-      };
+  @Deprecated('Use description.')
+  String get instruction => description;
+
+  @Deprecated('Use estimatedDuration.')
+  int get durationMinutes => estimatedDuration;
+
+  @Deprecated('Exercise Engine v2 no longer filters by environment.')
+  bool get availableIndoors => true;
+
+  @Deprecated('Exercise Engine v2 no longer filters by environment.')
+  bool get availableOutdoors => true;
 
   static String _requiredString(Map<String, Object?> json, String key) {
     final value = json[key];
@@ -72,5 +134,16 @@ class Exercise {
       throw FormatException('$key must be a non-empty string.');
     }
     return value;
+  }
+
+  static List<String> _sequenceSteps(Object? value) {
+    if (value == null) return const [];
+    if (value is! List ||
+        value.any((step) => step is! String || step.trim().isEmpty)) {
+      throw const FormatException(
+        'sequenceSteps must contain non-empty strings.',
+      );
+    }
+    return List.unmodifiable(value.cast<String>());
   }
 }

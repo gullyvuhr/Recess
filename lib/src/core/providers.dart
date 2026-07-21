@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../exercises/exercise.dart';
 import '../exercises/exercise_repository.dart';
 import '../exercises/exercise_service.dart';
+import 'bell_audio.dart';
 import 'database.dart';
 import 'history.dart';
 import 'insights.dart';
@@ -17,11 +18,14 @@ final databaseProvider =
     Provider<RecessDatabase>((_) => throw UnimplementedError());
 final notificationServiceProvider =
     Provider<BellNotifications>((_) => throw UnimplementedError());
+final bellPreviewPlayerProvider = Provider<BellPreviewPlayer>(
+  (_) => const PlatformBellPreviewPlayer(),
+);
 final exerciseCatalogProvider = Provider<ExerciseCatalog>(
   (_) => AssetExerciseRepository(),
 );
 final exerciseServiceProvider = Provider(
-  (ref) => ExerciseService(catalog: ref.watch(exerciseCatalogProvider)),
+  (ref) => ExerciseSelector(catalog: ref.watch(exerciseCatalogProvider)),
 );
 final clockProvider = Provider<Clock>((_) => DateTime.now);
 
@@ -149,6 +153,8 @@ class RecessActions {
     ref.invalidate(insightProvider);
     return result;
   }
+
+  Future<bool> refreshBellSound() => _service.refreshBellSound();
 
   Future<RecessSession?> openBell(String payload) => _service.openBell(payload);
 

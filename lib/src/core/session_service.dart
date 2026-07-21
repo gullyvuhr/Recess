@@ -20,8 +20,6 @@ class SessionActionResult<T> {
 }
 
 class RecessSessionService {
-  static const defaultExerciseEnvironment = ExerciseEnvironment.indoor;
-
   RecessSessionService({
     required RecessDatabase database,
     required BellNotifications notifications,
@@ -68,8 +66,11 @@ class RecessSessionService {
         );
       }
     } else if (open.status == RecessSessionStatus.deferred) {
-      final reminderScheduled =
-          await _notifications.scheduleDeferredBell(open.id, open.scheduledAt);
+      final reminderScheduled = await _notifications.scheduleDeferredBell(
+        open.id,
+        open.scheduledAt,
+        sound: await _bellSound(),
+      );
       final cadenceScheduled = await _rebuildCadence(
         open.id,
         _cadenceTimes(_clock(), await _database.schedule()),
@@ -102,6 +103,26 @@ class RecessSessionService {
     return null;
   }
 
+  Future<bool> refreshBellSound() async {
+    final open = await _database.openSession();
+    if (open == null) return true;
+    final sound = await _bellSound();
+    final cadenceScheduled = await _rebuildCadence(
+      open.id,
+      _cadenceTimes(_clock(), await _database.schedule()),
+      cancelObsolete: true,
+    );
+    if (open.status != RecessSessionStatus.deferred) {
+      return cadenceScheduled;
+    }
+    final deferredScheduled = await _notifications.scheduleDeferredBell(
+      open.id,
+      open.scheduledAt,
+      sound: sound,
+    );
+    return cadenceScheduled && deferredScheduled;
+  }
+
   Future<SessionActionResult<RecessSession>> ringBellNow() async {
     final open = await _database.openSession();
     final cadence = open == null ? await _scheduleNextCadence() : null;
@@ -112,6 +133,7 @@ class RecessSessionService {
     final delivered = await _notifications.ringBells(
       session.id,
       deferred: session.status == RecessSessionStatus.deferred,
+      sound: await _bellSound(),
     );
     return SessionActionResult(
       value: session,
@@ -171,8 +193,11 @@ class RecessSessionService {
       scheduledAt,
       deferredAt,
     );
-    final reminderScheduled =
-        await _notifications.scheduleDeferredBell(session.id, scheduledAt);
+    final reminderScheduled = await _notifications.scheduleDeferredBell(
+      session.id,
+      scheduledAt,
+      sound: await _bellSound(),
+    );
     // Keep the normal daily cadence alive even if this one-shot reminder is
     // ignored. openOrCreateScheduledSession reuses this deferred session.
     final cadence = await _scheduleNextCadence();
@@ -209,9 +234,16 @@ class RecessSessionService {
 
   Future<Exercise> _selectExercise() async {
     final previous = await _database.lastAssignedExerciseId();
+    final recent = (await _database.completedSessions())
+        .map((session) => session.exerciseId)
+        .whereType<String>()
+        .take(5)
+        .toList(growable: false);
+    final preferences = await _database.preferences();
     return _exercises.select(
-      environment: defaultExerciseEnvironment,
+      difficulty: preferences.exerciseDifficulty,
       previousExerciseId: previous,
+      recentExerciseIds: recent,
     );
   }
 
@@ -262,6 +294,7 @@ class RecessSessionService {
     bool cancelObsolete = false,
   }) =>
       _serializeCadence(() async {
+        final sound = await _bellSound();
         final expectedIds =
             times.map(NotificationService.cadenceNotificationId).toSet();
         if (cancelObsolete) {
@@ -270,8 +303,11 @@ class RecessSessionService {
         final scheduledTimes = <DateTime>[];
         var succeeded = true;
         for (final scheduledAt in times) {
-          final scheduled =
-              await _notifications.scheduleCadenceBell(sessionId, scheduledAt);
+          final scheduled = await _notifications.scheduleCadenceBell(
+            sessionId,
+            scheduledAt,
+            sound: sound,
+          );
           if (scheduled) scheduledTimes.add(scheduledAt);
           succeeded = scheduled && succeeded;
         }
@@ -286,6 +322,9 @@ class RecessSessionService {
         }
         return succeeded && verified;
       });
+
+  Future<BellSound> _bellSound() async =>
+      (await _database.preferences()).bellSound;
 
   Future<T> _serializeCadence<T>(Future<T> Function() operation) {
     final result = _cadenceOperation.then((_) => operation());

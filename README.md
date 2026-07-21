@@ -14,9 +14,16 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 - Insight Engine v1 with deterministic Today and rolling seven-day metrics, plus up to three evidence-supported observations
 - Home Dashboard v2 with a full-screen, live next-Recess hero above compact
   local daily progress and one ranked Insight Engine observation
-- Subtle completion transition that returns to the refreshed Home dashboard
+- Centered completion transition with curated, context-aware encouragement that
+  returns to the refreshed Home dashboard
 - Sprint 3 Settings with local workday access, Recess duration, exercise
   difficulty, Bell sound, quiet hours, notification preference, and About
+- Sprint 4 Exercise Engine with a 30-exercise offline library, structured
+  metadata, difficulty-aware deterministic selection, recent-exercise
+  avoidance, and duration-aware timed, repetition, hold, and sequence
+  prescriptions
+- Bundled School Bell, Coach Whistle, and Gentle Chime sounds with immediate
+  local previews and selected-sound delivery for manual and scheduled Bells
 - Riverpod state management and GoRouter navigation
 
 Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
@@ -29,7 +36,7 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
 ## Documentation
 
-The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.5.0.docx](docs/Recess_Master_Documentation_Index_v1.5.0.docx). Version 1.5.0 records Sprint 3 Settings as complete; lower versions remain historical.
+The canonical released documentation set is indexed in [Recess_Master_Documentation_Index_v1.6.0.docx](docs/Recess_Master_Documentation_Index_v1.6.0.docx). Version 1.6.0 records Sprint 4 Exercise Engine, prescriptions, Bell Sounds, and the completion experience as complete. Version 1.5.0 and lower versions remain historical. The detailed implementation record is [Recess_Sprint4_ExerciseEngine.md](docs/Recess_Sprint4_ExerciseEngine.md).
 
 ## Why is the source public?
 

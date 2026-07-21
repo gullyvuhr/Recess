@@ -6,15 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/providers.dart';
+import 'package:recess/src/core/bell_audio.dart';
 import 'package:recess/src/features/settings/settings_screen.dart';
 
 void main() {
   late RecessDatabase database;
   late _FakeNotifications notifications;
+  late _FakePreviewPlayer previewPlayer;
 
   setUp(() {
     database = RecessDatabase(NativeDatabase.memory());
     notifications = _FakeNotifications();
+    previewPlayer = _FakePreviewPlayer();
   });
 
   tearDown(() async {
@@ -28,6 +31,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(database),
           notificationServiceProvider.overrideWithValue(notifications),
+          bellPreviewPlayerProvider.overrideWithValue(previewPlayer),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -91,6 +95,7 @@ void main() {
     expect(saved.durationMinutes, 10);
     expect(saved.exerciseDifficulty, ExerciseDifficulty.challenging);
     expect(saved.bellSound, BellSound.coachWhistle);
+    expect(previewPlayer.played, [BellSound.coachWhistle]);
   });
 
   testWidgets('persists quiet hours toggle and exposes both times',
@@ -133,6 +138,16 @@ void main() {
   });
 }
 
+class _FakePreviewPlayer implements BellPreviewPlayer {
+  final played = <BellSound>[];
+
+  @override
+  Future<void> play(BellSound sound) async => played.add(sound);
+
+  @override
+  Future<void> stop() async {}
+}
+
 class _FakeNotifications implements BellNotifications {
   final _opened = StreamController<String>.broadcast();
   var permissionRequests = 0;
@@ -154,15 +169,25 @@ class _FakeNotifications implements BellNotifications {
   }
 
   @override
-  Future<bool> ringBells(int sessionId, {required bool deferred}) async => true;
+  Future<bool> ringBells(
+    int sessionId, {
+    required bool deferred,
+    BellSound sound = BellSound.schoolBell,
+  }) async =>
+      true;
   @override
-  Future<bool> scheduleCadenceBell(int sessionId, DateTime scheduledAt) async =>
+  Future<bool> scheduleCadenceBell(
+    int sessionId,
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async =>
       true;
   @override
   Future<bool> scheduleDeferredBell(
     int sessionId,
-    DateTime scheduledAt,
-  ) async =>
+    DateTime scheduledAt, {
+    BellSound sound = BellSound.schoolBell,
+  }) async =>
       true;
   @override
   String? takeInitialPayload() => null;
