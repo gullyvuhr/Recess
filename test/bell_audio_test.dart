@@ -121,6 +121,9 @@ void _expectAudibleShortPcmWave(
   final bitsPerSample = data.getUint16(34, Endian.little);
   final dataLength = data.getUint32(40, Endian.little);
   final duration = dataLength / (sampleRate * channels * (bitsPerSample / 8));
+  expect(sampleRate, 44100);
+  expect(bitsPerSample, 16);
+  expect(channels, 1);
   expect(duration, inInclusiveRange(minimumDuration, maximumDuration));
 
   var peak = 0;

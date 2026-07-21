@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/recess_cream</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/recess_splash_mark</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@color/recess_cream</item>
+        <item name="android:navigationBarColor">@color/recess_cream</item>
+    </style>
+</resources>

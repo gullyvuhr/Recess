@@ -111,10 +111,10 @@ the platform Flutter asset lookup. Android uses the stable channels
 `recess_school_bell`, `recess_coach_whistle`, and `recess_gentle_chime`, so
 older development channels cannot retain a previous default sound.
 
-The replacement recordings were adapted into short notification clips from
-the freely downloadable School Bell, Referee Blows Whistle, and Chimes Crystal
-Bell Toll source recordings published by SoundCamp. Their source pages remain
-the provenance record for the unmodified recordings.
+Sprint 5.2 superseded the initial downloadable recordings with deterministic,
+procedurally synthesized Recess originals. The filenames, mappings, duration
+targets, and product roles remain unchanged; the current provenance and hashes
+are recorded in the v1.7.0-beta.1 release asset manifest.
 
 ## Completion Voice
 

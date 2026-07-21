@@ -1,0 +1,4 @@
+storePassword=replace-with-local-secret
+keyPassword=replace-with-local-secret
+keyAlias=recess
+storeFile=../keystores/recess-upload.jks

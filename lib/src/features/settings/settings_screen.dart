@@ -12,8 +12,8 @@ import '../../core/bell_audio.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const appVersion = '0.1.0';
-  static const buildNumber = '1';
+  static const appVersion = '1.7.0-beta.1';
+  static const buildNumber = '2';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
             const _AboutRecess(),
             const SizedBox(height: 8),
             Text(
-              'Version $appVersion ($buildNumber) · Offline First',
+              'Beta · Version $appVersion ($buildNumber) · Offline First',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -340,9 +340,9 @@ class _AboutRecess extends StatelessWidget {
             child: Text(
               'Recess is a quiet reminder to step away from work and make time for yourself. '
               'It exists because small breaks are easy to postpone. '
-              'Everything works offline, so your schedule and history stay available without an account or connection. '
-              'Recess does not collect or send personal data. '
-              'Your information stays on this device. '
+              'Everything works offline, with no account or cloud dependency. '
+              'Recess has no analytics and does not collect or send personal data. '
+              'Your settings and history stay on this device. '
               'The simplicity is intentional: fewer distractions, more room to take a break.',
             ),
           ),

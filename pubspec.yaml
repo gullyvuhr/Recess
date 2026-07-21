@@ -1,7 +1,7 @@
 name: recess
 description: An offline-first app for taking intentional breaks during the workday.
 publish_to: none
-version: 0.1.0+1
+version: 1.7.0-beta.1+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

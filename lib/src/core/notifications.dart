@@ -89,7 +89,13 @@ class NotificationService implements BellNotifications {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
-        return await android.requestNotificationsPermission() ?? false;
+        final notificationsAllowed =
+            await android.requestNotificationsPermission() ?? false;
+        if (!notificationsAllowed) return false;
+        final exactAlarmsAllowed =
+            await android.canScheduleExactNotifications() ?? true;
+        if (exactAlarmsAllowed) return true;
+        return await android.requestExactAlarmsPermission() ?? false;
       }
       final ios = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
@@ -179,7 +185,7 @@ class NotificationService implements BellNotifications {
         tz.TZDateTime.from(scheduledAt, tz.local),
         detailsFor(sound),
         payload: deferred ? 'bell:deferred:$sessionId' : 'bell:$sessionId',
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: repeatsDaily ? DateTimeComponents.time : null,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,

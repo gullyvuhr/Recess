@@ -69,7 +69,12 @@ void main() {
     expect(find.text('School Bell'), findsOneWidget);
     expect(find.text('Notifications on'), findsOneWidget);
     await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
-    expect(find.text('Version 0.1.0 (1) · Offline First'), findsOneWidget);
+    expect(
+      find.text(
+        'Beta · Version 1.7.0-beta.1 (2) · Offline First',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('Recess is a quiet reminder'), findsOneWidget);
     expect(find.textContaining('does not collect or send personal data'),
         findsOneWidget);
