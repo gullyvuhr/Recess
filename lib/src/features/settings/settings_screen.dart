@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -77,6 +80,9 @@ class SettingsScreen extends ConsumerWidget {
               },
               onChanged: (sound) async {
                 await _save(ref, value.copyWith(bellSound: sound));
+                unawaited(
+                  HapticFeedback.selectionClick().catchError((_) {}),
+                );
                 await ref.read(bellPreviewPlayerProvider).play(sound);
                 await ref.read(recessActionsProvider).refreshBellSound();
               },
@@ -88,7 +94,9 @@ class SettingsScreen extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.bedtime_outlined),
               title: const Text('Quiet hours'),
-              subtitle: const Text('Keep this preference on this device'),
+              subtitle: const Text(
+                'Saved on this device. Bell timing is unchanged for now.',
+              ),
               value: value.quietHoursEnabled,
               onChanged: (enabled) => _save(
                 ref,
@@ -129,8 +137,8 @@ class SettingsScreen extends ConsumerWidget {
               secondary: const Icon(Icons.notifications_outlined),
               title: Text(
                 value.notificationsEnabled
-                    ? 'Notifications On'
-                    : 'Notifications Off',
+                    ? 'Notifications on'
+                    : 'Notifications off',
               ),
               value: value.notificationsEnabled,
               onChanged: (enabled) => _setNotifications(
@@ -142,13 +150,11 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const Divider(),
             const _SectionLabel('About'),
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.park_outlined),
-              title: Text('Recess'),
-              subtitle:
-                  Text('Version $appVersion ($buildNumber)\nOffline First'),
-              isThreeLine: true,
+            const _AboutRecess(),
+            const SizedBox(height: 8),
+            Text(
+              'Version $appVersion ($buildNumber) · Offline First',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
@@ -263,24 +269,83 @@ class _PreferenceDropdown<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
-  Widget build(BuildContext context) => ListTile(
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    if (!largeText) {
+      return ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(icon),
         title: Text(title),
-        trailing: DropdownButton<T>(
-          value: value,
-          underline: const SizedBox.shrink(),
-          items: items.entries
-              .map(
-                (entry) => DropdownMenuItem<T>(
-                  value: entry.key,
-                  child: Text(entry.value),
+        trailing: _dropdown(),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(title),
+                SizedBox(
+                  width: double.infinity,
+                  child: _dropdown(expanded: true),
                 ),
-              )
-              .toList(growable: false),
-          onChanged: (selected) {
-            if (selected != null) onChanged(selected);
-          },
-        ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dropdown({bool expanded = false}) => DropdownButton<T>(
+        value: value,
+        isExpanded: expanded,
+        underline: const SizedBox.shrink(),
+        items: items.entries
+            .map(
+              (entry) => DropdownMenuItem<T>(
+                value: entry.key,
+                child: Text(entry.value),
+              ),
+            )
+            .toList(growable: false),
+        onChanged: (selected) {
+          if (selected != null) onChanged(selected);
+        },
+      );
+}
+
+class _AboutRecess extends StatelessWidget {
+  const _AboutRecess();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.park_outlined),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Recess is a quiet reminder to step away from work and make time for yourself. '
+              'It exists because small breaks are easy to postpone. '
+              'Everything works offline, so your schedule and history stay available without an account or connection. '
+              'Recess does not collect or send personal data. '
+              'Your information stays on this device. '
+              'The simplicity is intentional: fewer distractions, more room to take a break.',
+            ),
+          ),
+        ],
       );
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/insights.dart';
@@ -79,6 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _acting = true);
     try {
       final session = await ref.read(recessActionsProvider).startNow();
+      unawaited(HapticFeedback.lightImpact().catchError((_) {}));
       if (mounted) context.go('/recess/${session.id}');
     } catch (_) {
       if (mounted) _message('Recess could not start. Please try again.');
@@ -142,7 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             insights.when(
               data: (value) => _TodayProgress(metrics: value.today),
               loading: () => const _LoadingBlock(),
-              error: (_, __) => const Text('Today\'s progress is unavailable.'),
+              error: (_, __) => const Text('Today is unavailable right now.'),
             ),
             const SizedBox(height: 14),
             const Divider(height: 1),
@@ -152,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             insights.when(
               data: (value) => _HomeInsight(summary: value),
               loading: () => const _LoadingBlock(),
-              error: (_, __) => const Text('Insight is unavailable.'),
+              error: (_, __) => const Text('Insight is unavailable right now.'),
             ),
           ],
         ),

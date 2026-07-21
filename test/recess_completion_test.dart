@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recess/src/core/models.dart';
@@ -14,6 +15,16 @@ import 'package:recess/src/features/recess/recess_screen.dart';
 void main() {
   testWidgets('completion stays centered for the existing two-second display',
       (tester) async {
+    final platformCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      platformCalls.add(call);
+      return null;
+    });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     final database = RecessDatabase(NativeDatabase.memory());
     final notifications = _FakeNotifications();
     var now = DateTime(2026, 7, 20, 10);
@@ -82,6 +93,27 @@ void main() {
     );
     expect(primary.textAlign, TextAlign.center);
     expect(supporting.textAlign, TextAlign.center);
+    final liveRegion = tester.widget<Semantics>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('completion-primary')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+    expect(liveRegion.properties.liveRegion, isTrue);
+    expect(
+      platformCalls,
+      contains(
+        isA<MethodCall>()
+            .having((call) => call.method, 'method', 'HapticFeedback.vibrate')
+            .having(
+              (call) => call.arguments,
+              'arguments',
+              'HapticFeedbackType.lightImpact',
+            ),
+      ),
+    );
     expect(
       tester.getCenter(find.byIcon(Icons.check_circle_outline)).dx,
       tester.getCenter(find.byType(Scaffold)).dx,

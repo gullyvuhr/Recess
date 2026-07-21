@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/completion_messages.dart';
@@ -57,6 +58,7 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
       } catch (_) {}
       if (!mounted) return;
       final completed = result.value;
+      unawaited(HapticFeedback.lightImpact().catchError((_) {}));
       final isManual = completed.originalScheduledAt == completed.createdAt;
       final next = homeStatus?.scheduledAt;
       setState(() {
@@ -121,33 +123,36 @@ class _CompletionTransition extends StatelessWidget {
     return Scaffold(
       body: _ScrollableBody(
         padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 28),
-            Text(
-              message.primary,
-              key: const Key('completion-primary'),
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              message.supporting,
-              key: const Key('completion-supporting'),
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 28),
+              Text(
+                message.primary,
+                key: const Key('completion-primary'),
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                message.supporting,
+                key: const Key('completion-supporting'),
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -178,6 +183,7 @@ class _ActiveSession extends ConsumerWidget {
           : Scaffold(
               appBar: AppBar(
                 leading: IconButton(
+                  tooltip: 'Back to today',
                   onPressed: isCompleting ? null : () => context.go('/home'),
                   icon: const Icon(Icons.close),
                 ),

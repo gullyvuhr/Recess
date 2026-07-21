@@ -51,6 +51,7 @@ void main() {
     );
 
     expect(find.text('Every 90 minutes'), findsOneWidget);
+    expect(find.text('Workday'), findsOneWidget);
     expect(find.text('8:30 AM'), findsOneWidget);
     expect(find.text('4:15 PM'), findsOneWidget);
   });
@@ -85,6 +86,19 @@ void main() {
     expect(notifications.cadenceCancellationCount, 1);
     expect(notifications.cadence, isNotEmpty);
     expect(find.text('Home'), findsOneWidget);
+  });
+
+  testWidgets('time controls expose concise button semantics', (tester) async {
+    await _pumpScheduleScreen(tester, database, notifications);
+
+    expect(
+      tester.getSemantics(find.text('9:00 AM')),
+      matchesSemantics(
+        label: 'Starts, 9:00 AM',
+        isButton: true,
+        hasTapAction: true,
+      ),
+    );
   });
 }
 

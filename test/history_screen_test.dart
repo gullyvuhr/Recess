@@ -25,11 +25,11 @@ void main() {
     expect(find.text('Completed movement: 0 min'), findsOneWidget);
     expect(find.text('Not enough Recess history yet.'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('No Recess history for these seven days.'),
+      find.text('Nothing recorded for these seven days yet.'),
       300,
     );
-    expect(
-        find.text('No Recess history for these seven days.'), findsOneWidget);
+    expect(find.text('Nothing recorded for these seven days yet.'),
+        findsOneWidget);
     expect(find.text('Completed Recesses'), findsOneWidget);
     final next = tester.widget<IconButton>(
       find.byKey(const ValueKey('next-history-period')),

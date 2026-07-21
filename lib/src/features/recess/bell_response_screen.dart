@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
@@ -65,6 +68,7 @@ class _ActionsState extends ConsumerState<_Actions> {
     setState(() => _acting = true);
     try {
       await ref.read(recessActionsProvider).start(session.id);
+      unawaited(HapticFeedback.lightImpact().catchError((_) {}));
       if (mounted) context.go('/recess/${session.id}');
     } catch (_) {
       if (mounted) _message('Recess could not start. Please try again.');
@@ -159,6 +163,7 @@ class _ActionsState extends ConsumerState<_Actions> {
                 _acting ? null : () => _defer(RecessDeferralType.fiveMinutes),
             child: const Text('Give me a minute'),
           ),
+          const SizedBox(height: 8),
           OutlinedButton(
             onPressed:
                 _acting ? null : () => _defer(RecessDeferralType.afterThis),

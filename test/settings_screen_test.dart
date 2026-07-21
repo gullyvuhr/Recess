@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/providers.dart';
@@ -66,13 +67,26 @@ void main() {
     expect(find.text('5 minutes'), findsOneWidget);
     expect(find.text('Standard'), findsOneWidget);
     expect(find.text('School Bell'), findsOneWidget);
-    expect(find.text('Notifications On'), findsOneWidget);
+    expect(find.text('Notifications on'), findsOneWidget);
     await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
-    expect(find.text('Version 0.1.0 (1)\nOffline First'), findsOneWidget);
+    expect(find.text('Version 0.1.0 (1) · Offline First'), findsOneWidget);
+    expect(find.textContaining('Recess is a quiet reminder'), findsOneWidget);
+    expect(find.textContaining('does not collect or send personal data'),
+        findsOneWidget);
   });
 
   testWidgets('updates duration, difficulty, and bell selection',
       (tester) async {
+    final platformCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      platformCalls.add(call);
+      return null;
+    });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     await pumpSettings(tester);
 
     await select<int>(
@@ -96,6 +110,18 @@ void main() {
     expect(saved.exerciseDifficulty, ExerciseDifficulty.challenging);
     expect(saved.bellSound, BellSound.coachWhistle);
     expect(previewPlayer.played, [BellSound.coachWhistle]);
+    expect(
+      platformCalls,
+      contains(
+        isA<MethodCall>()
+            .having((call) => call.method, 'method', 'HapticFeedback.vibrate')
+            .having(
+              (call) => call.arguments,
+              'arguments',
+              'HapticFeedbackType.selectionClick',
+            ),
+      ),
+    );
   });
 
   testWidgets('persists quiet hours toggle and exposes both times',
@@ -135,6 +161,35 @@ void main() {
     await tester.pumpAndSettle();
     expect((await database.preferences()).notificationsEnabled, isTrue);
     expect(notifications.permissionRequests, 1);
+  });
+
+  testWidgets('preference controls reflow safely with larger text',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          notificationServiceProvider.overrideWithValue(notifications),
+          bellPreviewPlayerProvider.overrideWithValue(previewPlayer),
+        ],
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(1.8)),
+            child: SettingsScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Exercise difficulty'), findsOneWidget);
+    expect(find.text('Standard'), findsOneWidget);
   });
 }
 

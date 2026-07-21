@@ -131,6 +131,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
+      appBar: widget.editing
+          ? AppBar(
+              title: const Text('Workday'),
+              backgroundColor: Colors.transparent,
+            )
+          : null,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
@@ -230,19 +236,29 @@ class _TimeCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label),
-              const SizedBox(height: 6),
-              Text(time.format(context),
-                  style: Theme.of(context).textTheme.titleLarge)
-            ]),
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: '$label, ${time.format(context)}',
+        onTap: onTap,
+        excludeSemantics: true,
+        child: Card(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label),
+                  const SizedBox(height: 6),
+                  Text(
+                    time.format(context),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );

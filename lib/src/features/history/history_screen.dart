@@ -107,7 +107,7 @@ class _HistoryBody extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'No Recess history for these seven days.',
+                  'Nothing recorded for these seven days yet.',
                   textAlign: TextAlign.center,
                 ),
               ),

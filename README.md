@@ -24,6 +24,9 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
   prescriptions
 - Bundled School Bell, Coach Whistle, and Gentle Chime sounds with immediate
   local previews and selected-sound delivery for manual and scheduled Bells
+- Sprint 5.1 Product Polish with clearer copy, large-text-safe Settings,
+  improved semantics, standard Workday navigation, and restrained native
+  haptics
 - Riverpod state management and GoRouter navigation
 
 Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
@@ -36,7 +39,7 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
 ## Documentation
 
-The canonical released documentation set is indexed in [Recess_Master_Documentation_Index_v1.6.0.docx](docs/Recess_Master_Documentation_Index_v1.6.0.docx). Version 1.6.0 records Sprint 4 Exercise Engine, prescriptions, Bell Sounds, and the completion experience as complete. Version 1.5.0 and lower versions remain historical. The detailed implementation record is [Recess_Sprint4_ExerciseEngine.md](docs/Recess_Sprint4_ExerciseEngine.md).
+The canonical released documentation set is indexed in [Recess_Master_Documentation_Index_v1.6.1.docx](docs/Recess_Master_Documentation_Index_v1.6.1.docx). Version 1.6.1 records Sprint 5.1 Product Polish as complete. Version 1.6.0 and lower versions remain historical. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md) and [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md).
 
 ## Why is the source public?
 
