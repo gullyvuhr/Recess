@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -53,6 +52,8 @@ class NotificationService implements BellNotifications {
   static const legacyCadenceBellNotificationId = 100;
   static const deferredBellNotificationId = 200;
   static const _cadenceNotificationIdBase = 10000;
+  static const notificationTitle = 'Time for Recess';
+  static const notificationBody = 'Take a few minutes to move and reset.';
 
   final _plugin = FlutterLocalNotificationsPlugin();
   final _openedPayloads = StreamController<String>.broadcast();
@@ -63,14 +64,9 @@ class NotificationService implements BellNotifications {
 
   Future<void> initialize() async {
     tz.initializeTimeZones();
-    try {
-      final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone.identifier));
-    } catch (_) {
-      tz.setLocalLocation(tz.UTC);
-    }
+    await refreshTimezone();
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_launcher_monochrome'),
       iOS: DarwinInitializationSettings(),
     );
     await _plugin.initialize(
@@ -80,6 +76,15 @@ class NotificationService implements BellNotifications {
     final launchDetails = await _plugin.getNotificationAppLaunchDetails();
     if (launchDetails?.didNotificationLaunchApp ?? false) {
       _initialPayload = launchDetails?.notificationResponse?.payload;
+    }
+  }
+
+  Future<void> refreshTimezone() async {
+    try {
+      final zone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(zone.identifier));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
     }
   }
 
@@ -180,8 +185,8 @@ class NotificationService implements BellNotifications {
       if (!await _canNotify()) return false;
       await _plugin.zonedSchedule(
         id,
-        'Bells',
-        'It might be a good moment for recess.',
+        notificationTitle,
+        notificationBody,
         tz.TZDateTime.from(scheduledAt, tz.local),
         detailsFor(sound),
         payload: deferred ? 'bell:deferred:$sessionId' : 'bell:$sessionId',
@@ -235,10 +240,7 @@ class NotificationService implements BellNotifications {
           )
           .toList(growable: false)
         ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Unable to inspect pending cadence Bells: $error');
-      }
+    } catch (_) {
       return const [];
     }
   }
@@ -266,8 +268,8 @@ class NotificationService implements BellNotifications {
       if (!await _canNotify()) return false;
       await _plugin.show(
         immediateBellNotificationId,
-        'Bells',
-        'It might be a good moment for recess.',
+        notificationTitle,
+        notificationBody,
         detailsFor(sound),
         payload:
             deferred ? 'bell:deferred:$sessionId' : 'bell:immediate:$sessionId',

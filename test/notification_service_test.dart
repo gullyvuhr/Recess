@@ -51,6 +51,13 @@ void main() {
     final platformSpecifics =
         arguments['platformSpecifics'] as Map<Object?, Object?>;
     expect(platformSpecifics['scheduleMode'], 'exactAllowWhileIdle');
+    expect(arguments['title'], NotificationService.notificationTitle);
+    expect(arguments['body'], NotificationService.notificationBody);
+    expect(NotificationService.notificationTitle, 'Time for Recess');
+    expect(
+      NotificationService.notificationBody,
+      'Take a few minutes to move and reset.',
+    );
   });
 
   test('Android permission flow requests exact-alarm access', () async {

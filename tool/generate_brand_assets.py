@@ -15,14 +15,14 @@ CANVAS = 1024
 
 # One original silhouette used by both the SVG and raster renderers.
 BODY_COMMANDS = (
-    ("M", (512, 224)),
-    ("C", (382, 224, 300, 326, 300, 466)),
-    ("C", (300, 582, 272, 642, 226, 704)),
-    ("C", (210, 726, 225, 758, 253, 758)),
-    ("L", (771, 758)),
-    ("C", (799, 758, 814, 726, 798, 704)),
-    ("C", (752, 642, 724, 582, 724, 466)),
-    ("C", (724, 326, 642, 224, 512, 224)),
+    ("M", (512, 210)),
+    ("C", (408, 210, 334, 286, 326, 402)),
+    ("C", (319, 518, 300, 610, 250, 680)),
+    ("C", (234, 702, 250, 732, 278, 732)),
+    ("L", (746, 732)),
+    ("C", (774, 732, 790, 702, 774, 680)),
+    ("C", (724, 610, 705, 518, 698, 402)),
+    ("C", (690, 286, 616, 210, 512, 210)),
     ("Z", ()),
 )
 
@@ -99,9 +99,10 @@ def _svg(*, include_background: bool) -> str:
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">\n'
         f"{background}"
+        f'  <rect x="448" y="150" width="128" height="96" rx="48" fill="{GREEN}"/>\n'
         f'  <path fill="{GREEN}" d="{_svg_path()}"/>\n'
-        f'  <rect x="248" y="728" width="528" height="74" rx="37" fill="{GREEN}"/>\n'
-        f'  <circle cx="512" cy="820" r="58" fill="{GREEN}"/>\n'
+        f'  <rect x="266" y="710" width="492" height="64" rx="32" fill="{GREEN}"/>\n'
+        f'  <circle cx="512" cy="820" r="48" fill="{GREEN}"/>\n'
         "</svg>\n"
     )
 
@@ -120,12 +121,15 @@ def _render(size: int, *, background: bool, mark_scale: float = 1.0) -> Image.Im
         y = 512 + (point[1] - 512) * mark_scale
         return x * oversample, y * oversample
 
+    x1, y1 = transform((448, 150))
+    x2, y2 = transform((576, 246))
+    draw.rounded_rectangle((x1, y1, x2, y2), radius=48 * mark_scale * oversample, fill=green)
     draw.polygon([transform(point) for point in _body_points()], fill=green)
-    x1, y1 = transform((248, 728))
-    x2, y2 = transform((776, 802))
-    draw.rounded_rectangle((x1, y1, x2, y2), radius=37 * mark_scale * oversample, fill=green)
+    x1, y1 = transform((266, 710))
+    x2, y2 = transform((758, 774))
+    draw.rounded_rectangle((x1, y1, x2, y2), radius=32 * mark_scale * oversample, fill=green)
     cx, cy = transform((512, 820))
-    radius = 58 * mark_scale * oversample
+    radius = 48 * mark_scale * oversample
     draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=green)
     return image.resize((size, size), Image.Resampling.LANCZOS)
 

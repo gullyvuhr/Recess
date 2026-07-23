@@ -71,7 +71,7 @@ void main() {
     await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
     expect(
       find.text(
-        'Beta · Version 1.7.0-beta.1 (2) · Offline First',
+        'Beta · Version 1.7.0-beta.2 (3) · Offline First',
       ),
       findsOneWidget,
     );

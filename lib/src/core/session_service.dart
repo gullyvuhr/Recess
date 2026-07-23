@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import 'cadence_schedule.dart';
 import 'database.dart';
 import 'models.dart';
@@ -300,7 +298,6 @@ class RecessSessionService {
         if (cancelObsolete) {
           await _notifications.cancelCadenceBell(retaining: expectedIds);
         }
-        final scheduledTimes = <DateTime>[];
         var succeeded = true;
         for (final scheduledAt in times) {
           final scheduled = await _notifications.scheduleCadenceBell(
@@ -308,18 +305,11 @@ class RecessSessionService {
             scheduledAt,
             sound: sound,
           );
-          if (scheduled) scheduledTimes.add(scheduledAt);
           succeeded = scheduled && succeeded;
         }
         final pending = await _notifications.pendingCadenceBells();
         final pendingIds = pending.map((bell) => bell.id).toSet();
         final verified = expectedIds.every(pendingIds.contains);
-        if (kDebugMode && _notifications is NotificationService) {
-          debugPrint('Cadence rebuild expected: $times');
-          debugPrint('Cadence rebuild scheduled: $scheduledTimes');
-          debugPrint(
-              'Cadence pending IDs: ${pending.map((bell) => bell.id).toList()}');
-        }
         return succeeded && verified;
       });
 

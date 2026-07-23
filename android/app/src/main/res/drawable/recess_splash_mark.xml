@@ -6,11 +6,14 @@
     android:viewportHeight="1024">
     <path
         android:fillColor="@color/recess_green"
-        android:pathData="M512,224 C382,224 300,326 300,466 C300,582 272,642 226,704 C210,726 225,758 253,758 L771,758 C799,758 814,726 798,704 C752,642 724,582 724,466 C724,326 642,224 512,224 Z" />
+        android:pathData="M496,150 H528 A48,48 0,0 1,576 198 A48,48 0,0 1,528 246 H496 A48,48 0,0 1,448 198 A48,48 0,0 1,496 150 Z" />
     <path
         android:fillColor="@color/recess_green"
-        android:pathData="M285,728 H739 A37,37 0,0 1,776 765 A37,37 0,0 1,739 802 H285 A37,37 0,0 1,248 765 A37,37 0,0 1,285 728 Z" />
+        android:pathData="M512,210 C408,210 334,286 326,402 C319,518 300,610 250,680 C234,702 250,732 278,732 L746,732 C774,732 790,702 774,680 C724,610 705,518 698,402 C690,286 616,210 512,210 Z" />
     <path
         android:fillColor="@color/recess_green"
-        android:pathData="M512,762 A58,58 0,1 1,512 878 A58,58 0,1 1,512 762 Z" />
+        android:pathData="M298,710 H726 A32,32 0,0 1,758 742 A32,32 0,0 1,726 774 H298 A32,32 0,0 1,266 742 A32,32 0,0 1,298 710 Z" />
+    <path
+        android:fillColor="@color/recess_green"
+        android:pathData="M512,772 A48,48 0,1 1,512 868 A48,48 0,1 1,512 772 Z" />
 </vector>

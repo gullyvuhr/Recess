@@ -13,6 +13,8 @@ void main() {
     expect(svg, contains('viewBox="0 0 1024 1024"'));
     expect(svg, contains('#315C4B'));
     expect(svg, contains('#F7F3E8'));
+    expect(svg, contains('x="448" y="150"'));
+    expect(svg, contains('cx="512" cy="820" r="48"'));
     expect(svg, isNot(contains('<image')));
     expect(svg, isNot(contains('href=')));
     expect(_pngDimensions(png), (1024, 1024));
@@ -55,6 +57,12 @@ void main() {
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
     expect(manifest, contains('android:icon="@mipmap/ic_launcher"'));
     expect(manifest, contains('android:roundIcon="@mipmap/ic_launcher_round"'));
+    final notifications =
+        File('lib/src/core/notifications.dart').readAsStringSync();
+    expect(
+      notifications,
+      contains("AndroidInitializationSettings('ic_launcher_monochrome')"),
+    );
     expect(
       File('android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml')
           .readAsStringSync(),
@@ -65,6 +73,11 @@ void main() {
           .readAsStringSync(),
       contains('@drawable/ic_launcher_monochrome'),
     );
+    final monochrome = File(
+      'android/app/src/main/res/drawable/ic_launcher_monochrome.xml',
+    ).readAsStringSync();
+    expect(monochrome, contains('M496,150'));
+    expect(monochrome, contains('M512,210'));
     expect(
       File('android/app/src/main/res/values-v31/styles.xml').readAsStringSync(),
       contains('@drawable/recess_splash_mark'),
@@ -103,6 +116,14 @@ void main() {
     expect(splashContents, contains('RecessBell@1x.png'));
     expect(splashContents, contains('RecessBell@2x.png'));
     expect(splashContents, contains('RecessBell@3x.png'));
+  });
+
+  test('application keeps light identity and supports system dark mode', () {
+    final app = File('lib/src/app.dart').readAsStringSync();
+
+    expect(app, contains('scaffoldBackgroundColor: const Color(0xfff7f3e8)'));
+    expect(app, contains('brightness: Brightness.dark'));
+    expect(app, contains('themeMode: ThemeMode.system'));
   });
 }
 

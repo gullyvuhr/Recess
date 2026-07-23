@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'models.dart';
@@ -65,17 +64,13 @@ class PlatformBellPreviewPlayer implements BellPreviewPlayer {
         'play',
         sound.definition.previewAssetPath,
       );
-    } catch (error) {
-      if (kDebugMode) debugPrint('Bell preview failed: $error');
-    }
+    } catch (_) {}
   }
 
   @override
   Future<void> stop() async {
     try {
       await _channel.invokeMethod<void>('stop');
-    } catch (error) {
-      if (kDebugMode) debugPrint('Stopping Bell preview failed: $error');
-    }
+    } catch (_) {}
   }
 }
