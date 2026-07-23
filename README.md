@@ -18,6 +18,8 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
   returns to the refreshed Home dashboard
 - Sprint 3 Settings with local workday access, Recess duration, exercise
   difficulty, Bell sound, quiet hours, notification preference, and About
+- Quiet Hours suppress scheduled and deferred Bells inside same-day or
+  overnight ranges while preserving the normal cadence
 - Sprint 4 Exercise Engine with a 30-exercise offline library, structured
   metadata, difficulty-aware deterministic selection, recent-exercise
   avoidance, and duration-aware timed, repetition, hold, and sequence
@@ -30,7 +32,7 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 - Sprint 5.1 Product Polish with clearer copy, large-text-safe Settings,
   improved semantics, standard Workday navigation, and restrained native
   haptics
-- Production-polish beta at `1.7.0-beta.2+3`, with refined native
+- Release candidate `1.0.0-rc.1+4`, with refined native
   identity, cream launch surfaces, local release-signing configuration, upgrade
   preservation coverage, resume-time Bell reconciliation, and an explicit
   release-readiness checklist
@@ -46,7 +48,7 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
 ## Documentation
 
-The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.7.0-beta.2.docx](docs/Recess_Master_Documentation_Index_v1.7.0-beta.2.docx). Version 1.7.0-beta.2 is the current Beta candidate and records the production-polish pass. Version 1.6.1 remains the current Stable; beta.1 and lower versions remain historical. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), and [beta.2 production polish](docs/Recess_Beta2_ProductionPolish.md).
+The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.0.0-rc.1.docx](docs/Recess_Master_Documentation_Index_v1.0.0-rc.1.docx). Version 1.0.0-rc.1 is the current Release Candidate. Version 1.6.1 remains the stable baseline; beta releases and lower versions remain historical. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), and [beta.2 production polish](docs/Recess_Beta2_ProductionPolish.md).
 
 ## Why is the source public?
 
@@ -65,9 +67,10 @@ delivered while the device is idle. Android 13+ also requires notification
 permission. Platform projects can be generated with
 `flutter create . --platforms=android,ios` if they are not present in a checkout.
 
-Beta installation, signing, upgrade, asset, and release-blocker instructions are
+Installation, signing, upgrade, asset, and release-validation instructions are
 recorded in [the Sprint 5.2 release checklist](docs/Recess_Beta_Release_Checklist_v1.7.0-beta.1.md).
 Visual and audio provenance is tracked in the
-[current beta release asset manifest](docs/Recess_Release_Asset_Manifest_v1.7.0-beta.2.md).
+[current release asset manifest](docs/Recess_Release_Asset_Manifest_v1.0.0-rc.1.md).
 Changes in this candidate are summarized in the
-[v1.7.0-beta.2 release notes](docs/Recess_Release_Notes_v1.7.0-beta.2.md).
+[v1.0.0-rc.1 release notes](docs/Recess_Release_Notes_v1.0.0-rc.1.md) and
+[CHANGELOG.md](CHANGELOG.md).

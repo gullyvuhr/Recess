@@ -403,6 +403,87 @@ void main() {
     );
   });
 
+  test('restore skips cadence Bells inside same-day Quiet Hours', () async {
+    await database.savePreferences(
+      const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 11 * 60,
+        quietHoursEndMinutes: 14 * 60,
+      ),
+    );
+
+    final restored = await service.restore();
+
+    expect(restored.value!.scheduledAt, DateTime(2026, 7, 19, 14));
+    expect(
+        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 11))));
+    expect(
+        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 12))));
+    expect(
+        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 13))));
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 14)));
+  });
+
+  test('restore reconciliation removes a newly quiet cadence Bell', () async {
+    await service.restore();
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
+
+    await database.savePreferences(
+      const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 11 * 60,
+        quietHoursEndMinutes: 12 * 60,
+      ),
+    );
+    await service.restore();
+
+    expect(
+      notifications.pendingTimes,
+      isNot(contains(DateTime(2026, 7, 19, 11))),
+    );
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 12)));
+  });
+
+  test('restore removes all pending Bells when the workday is fully quiet',
+      () async {
+    await service.restore();
+    expect(notifications.pendingTimes, isNotEmpty);
+
+    await database.savePreferences(
+      const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 9 * 60,
+        quietHoursEndMinutes: 17 * 60,
+      ),
+    );
+    final result = await service.restore();
+
+    expect(result.notificationSucceeded, isTrue);
+    expect(notifications.pendingTimes, isEmpty);
+  });
+
+  test('deferred Bell inside Quiet Hours is skipped during reconciliation',
+      () async {
+    await database.savePreferences(
+      const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 10 * 60,
+        quietHoursEndMinutes: 11 * 60,
+      ),
+    );
+    final scheduled = await _session(database, now);
+
+    final result = await service.defer(
+      scheduled.id,
+      RecessDeferralType.fiveMinutes,
+    );
+
+    expect(result.notificationSucceeded, isTrue);
+    expect(notifications.deferred, isEmpty);
+    expect(notifications.deferredCancellationCount, 1);
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
+  });
+
   test('saved cadence interval controls rebuilt notification times', () async {
     await database.saveSchedule(
       const WorkSchedule(
@@ -604,6 +685,7 @@ class FakeNotifications implements BellNotifications {
   @override
   Future<void> cancelDeferredBell() async {
     deferredCancellationCount++;
+    deferred.clear();
   }
 
   @override

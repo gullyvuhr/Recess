@@ -29,6 +29,11 @@ Build metadata: `1.7.0-beta.2+3`
 
 ## Known limitations
 
+- Quiet Hours now skips scheduled and deferred Bells inside configured same-day
+  or overnight ranges without shifting the normal cadence. This behavior was
+  subsequently validated on-device for `v1.0.0-rc.1`.
+- Missed Recesses remain unavailable because the Fact Engine has no missed or
+  expired lifecycle fact; ignored notifications are not inferred as misses.
 - Release APK/AAB assembly can be blocked on the current Windows host by the
   existing Java/Maven PKIX trust-store issue; this is not an application error.
 - iOS compilation and native visual validation require macOS/Xcode.

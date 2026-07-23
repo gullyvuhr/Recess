@@ -58,6 +58,7 @@ class NotificationService implements BellNotifications {
   final _plugin = FlutterLocalNotificationsPlugin();
   final _openedPayloads = StreamController<String>.broadcast();
   String? _initialPayload;
+  bool _hasResolvedTimezone = false;
 
   @override
   Stream<String> get openedPayloads => _openedPayloads.stream;
@@ -83,8 +84,9 @@ class NotificationService implements BellNotifications {
     try {
       final zone = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(zone.identifier));
+      _hasResolvedTimezone = true;
     } catch (_) {
-      tz.setLocalLocation(tz.UTC);
+      if (!_hasResolvedTimezone) tz.setLocalLocation(tz.UTC);
     }
   }
 
@@ -152,7 +154,6 @@ class NotificationService implements BellNotifications {
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: false,
-      repeatsDaily: false,
       sound: sound,
     );
   }
@@ -168,7 +169,6 @@ class NotificationService implements BellNotifications {
       sessionId: sessionId,
       scheduledAt: scheduledAt,
       deferred: true,
-      repeatsDaily: false,
       sound: sound,
     );
   }
@@ -178,7 +178,6 @@ class NotificationService implements BellNotifications {
     required int sessionId,
     required DateTime scheduledAt,
     required bool deferred,
-    required bool repeatsDaily,
     required BellSound sound,
   }) async {
     try {
@@ -191,7 +190,6 @@ class NotificationService implements BellNotifications {
         detailsFor(sound),
         payload: deferred ? 'bell:deferred:$sessionId' : 'bell:$sessionId',
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: repeatsDaily ? DateTimeComponents.time : null,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );

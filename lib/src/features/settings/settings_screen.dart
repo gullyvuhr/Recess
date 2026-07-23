@@ -12,8 +12,8 @@ import '../../core/bell_audio.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const appVersion = '1.7.0-beta.2';
-  static const buildNumber = '3';
+  static const appVersion = '1.0.0-rc.1';
+  static const buildNumber = '4';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,10 +95,10 @@ class SettingsScreen extends ConsumerWidget {
               secondary: const Icon(Icons.bedtime_outlined),
               title: const Text('Quiet hours'),
               subtitle: const Text(
-                'Saved on this device. Bell timing is unchanged for now.',
+                'Scheduled Bells in this time are skipped.',
               ),
               value: value.quietHoursEnabled,
-              onChanged: (enabled) => _save(
+              onChanged: (enabled) => _saveQuietHours(
                 ref,
                 value.copyWith(quietHoursEnabled: enabled),
               ),
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
             const _AboutRecess(),
             const SizedBox(height: 8),
             Text(
-              'Beta · Version $appVersion ($buildNumber) · Offline First',
+              'Release candidate · Version $appVersion ($buildNumber) · Offline First',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -202,12 +202,20 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (selected == null) return;
     final minutes = selected.hour * 60 + selected.minute;
-    await _save(
+    await _saveQuietHours(
       ref,
       start
           ? preferences.copyWith(quietHoursStartMinutes: minutes)
           : preferences.copyWith(quietHoursEndMinutes: minutes),
     );
+  }
+
+  static Future<void> _saveQuietHours(
+    WidgetRef ref,
+    RecessPreferences preferences,
+  ) async {
+    await _save(ref, preferences);
+    await ref.read(recessActionsProvider).restore();
   }
 
   static Future<void> _setNotifications(

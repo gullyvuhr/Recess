@@ -51,6 +51,7 @@ void main() {
     final platformSpecifics =
         arguments['platformSpecifics'] as Map<Object?, Object?>;
     expect(platformSpecifics['scheduleMode'], 'exactAllowWhileIdle');
+    expect(arguments['matchDateTimeComponents'], isNull);
     expect(arguments['title'], NotificationService.notificationTitle);
     expect(arguments['body'], NotificationService.notificationBody);
     expect(NotificationService.notificationTitle, 'Time for Recess');

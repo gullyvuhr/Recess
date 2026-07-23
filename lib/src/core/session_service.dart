@@ -47,7 +47,10 @@ class RecessSessionService {
       return _scheduleNextCadence(cancelObsolete: true);
     }
     if (open.status == RecessSessionStatus.scheduled) {
-      final times = _cadenceTimes(_clock(), await _database.schedule());
+      final times = await _cadenceTimes(
+        _clock(),
+        await _database.schedule(),
+      );
       if (times.isNotEmpty) {
         final rescheduled = await _database.rescheduleCadenceSession(
           open.id,
@@ -63,15 +66,23 @@ class RecessSessionService {
           notificationSucceeded: scheduled,
         );
       }
+      final scheduled = await _rebuildCadence(
+        open.id,
+        times,
+        cancelObsolete: true,
+      );
+      return SessionActionResult(
+        value: open,
+        notificationSucceeded: scheduled,
+      );
     } else if (open.status == RecessSessionStatus.deferred) {
-      final reminderScheduled = await _notifications.scheduleDeferredBell(
+      final reminderScheduled = await _scheduleDeferredBell(
         open.id,
         open.scheduledAt,
-        sound: await _bellSound(),
       );
       final cadenceScheduled = await _rebuildCadence(
         open.id,
-        _cadenceTimes(_clock(), await _database.schedule()),
+        await _cadenceTimes(_clock(), await _database.schedule()),
         cancelObsolete: true,
       );
       return SessionActionResult(
@@ -107,13 +118,13 @@ class RecessSessionService {
     final sound = await _bellSound();
     final cadenceScheduled = await _rebuildCadence(
       open.id,
-      _cadenceTimes(_clock(), await _database.schedule()),
+      await _cadenceTimes(_clock(), await _database.schedule()),
       cancelObsolete: true,
     );
     if (open.status != RecessSessionStatus.deferred) {
       return cadenceScheduled;
     }
-    final deferredScheduled = await _notifications.scheduleDeferredBell(
+    final deferredScheduled = await _scheduleDeferredBell(
       open.id,
       open.scheduledAt,
       sound: sound,
@@ -191,10 +202,9 @@ class RecessSessionService {
       scheduledAt,
       deferredAt,
     );
-    final reminderScheduled = await _notifications.scheduleDeferredBell(
+    final reminderScheduled = await _scheduleDeferredBell(
       session.id,
       scheduledAt,
-      sound: await _bellSound(),
     );
     // Keep the normal daily cadence alive even if this one-shot reminder is
     // ignored. openOrCreateScheduledSession reuses this deferred session.
@@ -256,7 +266,7 @@ class RecessSessionService {
       );
     }
     final now = _clock();
-    final times = _cadenceTimes(now, schedule);
+    final times = await _cadenceTimes(now, schedule);
     if (times.isEmpty) {
       await _notifications.cancelCadenceBell();
       return const SessionActionResult(
@@ -281,9 +291,34 @@ class RecessSessionService {
     );
   }
 
-  List<DateTime> _cadenceTimes(DateTime now, WorkSchedule? schedule) {
+  Future<List<DateTime>> _cadenceTimes(
+    DateTime now,
+    WorkSchedule? schedule,
+  ) async {
     if (schedule == null) return const [];
-    return cadenceBellTimes(schedule: schedule, now: now);
+    final preferences = await _database.preferences();
+    return cadenceBellTimes(
+      schedule: schedule,
+      now: now,
+      include: (time) => !isDuringQuietHours(time, preferences),
+    );
+  }
+
+  Future<bool> _scheduleDeferredBell(
+    int sessionId,
+    DateTime scheduledAt, {
+    BellSound? sound,
+  }) async {
+    final preferences = await _database.preferences();
+    if (isDuringQuietHours(scheduledAt, preferences)) {
+      await _notifications.cancelDeferredBell();
+      return true;
+    }
+    return _notifications.scheduleDeferredBell(
+      sessionId,
+      scheduledAt,
+      sound: sound ?? preferences.bellSound,
+    );
   }
 
   Future<bool> _rebuildCadence(

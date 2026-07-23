@@ -125,6 +125,15 @@ void main() {
     expect(app, contains('brightness: Brightness.dark'));
     expect(app, contains('themeMode: ThemeMode.system'));
   });
+
+  test('release configuration has no stale direct UI dependency', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final notifications =
+        File('lib/src/core/notifications.dart').readAsStringSync();
+
+    expect(pubspec, isNot(contains('cupertino_icons:')));
+    expect(notifications, isNot(contains('repeatsDaily')));
+  });
 }
 
 (int, int) _pngDimensions(File file) {

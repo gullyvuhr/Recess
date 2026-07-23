@@ -102,4 +102,74 @@ void main() {
       first,
     );
   });
+
+  group('Quiet Hours', () {
+    const disabled = RecessPreferences(
+      quietHoursStartMinutes: 9 * 60,
+      quietHoursEndMinutes: 17 * 60,
+    );
+    const sameDay = RecessPreferences(
+      quietHoursEnabled: true,
+      quietHoursStartMinutes: 12 * 60,
+      quietHoursEndMinutes: 14 * 60,
+    );
+    const overnight = RecessPreferences(
+      quietHoursEnabled: true,
+      quietHoursStartMinutes: 22 * 60,
+      quietHoursEndMinutes: 7 * 60,
+    );
+
+    test('disabled preference never suppresses a Bell', () {
+      expect(isDuringQuietHours(DateTime(2026, 7, 19, 12), disabled), isFalse);
+    });
+
+    test('same-day range preserves Bells before and after it', () {
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 19, 11, 59), sameDay),
+        isFalse,
+      );
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 19, 14), sameDay),
+        isFalse,
+      );
+    });
+
+    test('same-day range suppresses its start and interior', () {
+      expect(isDuringQuietHours(DateTime(2026, 7, 19, 12), sameDay), isTrue);
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 19, 13, 59), sameDay),
+        isTrue,
+      );
+    });
+
+    test('overnight range crosses midnight with an exclusive end', () {
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 19, 21, 59), overnight),
+        isFalse,
+      );
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 19, 22), overnight),
+        isTrue,
+      );
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 20, 1), overnight),
+        isTrue,
+      );
+      expect(
+        isDuringQuietHours(DateTime(2026, 7, 20, 7), overnight),
+        isFalse,
+      );
+    });
+
+    test('uses local wall-clock fields across a DST transition date', () {
+      expect(
+        isDuringQuietHours(DateTime(2026, 3, 8, 6, 59), overnight),
+        isTrue,
+      );
+      expect(
+        isDuringQuietHours(DateTime(2026, 3, 8, 7), overnight),
+        isFalse,
+      );
+    });
+  });
 }

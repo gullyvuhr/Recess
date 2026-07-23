@@ -71,7 +71,7 @@ void main() {
     await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
     expect(
       find.text(
-        'Beta · Version 1.7.0-beta.2 (3) · Offline First',
+        'Release candidate · Version 1.0.0-rc.1 (4) · Offline First',
       ),
       findsOneWidget,
     );
@@ -145,6 +145,10 @@ void main() {
     expect(find.byKey(const ValueKey('quiet-hours-end')), findsOneWidget);
     expect(find.text('10:00 PM'), findsOneWidget);
     expect(find.text('7:00 AM'), findsOneWidget);
+    expect(
+      find.text('Scheduled Bells in this time are skipped.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('notification toggle persists and reuses permission request',

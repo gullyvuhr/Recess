@@ -77,11 +77,15 @@ class _RecessAppState extends ConsumerState<RecessApp>
   }
 
   Future<void> _reconcileAfterResume() async {
-    final notifications = ref.read(notificationServiceProvider);
-    if (notifications is NotificationService) {
-      await notifications.refreshTimezone();
+    try {
+      final notifications = ref.read(notificationServiceProvider);
+      if (notifications is NotificationService) {
+        await notifications.refreshTimezone();
+      }
+      await ref.read(recessActionsProvider).restore();
+    } catch (_) {
+      // Startup and the next resume can reconcile after a transient failure.
     }
-    await ref.read(recessActionsProvider).restore();
   }
 
   Future<bool> _openBell(String payload) async {
