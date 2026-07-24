@@ -11,7 +11,9 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 - Start Recess, Give me a minute, After this, Rain check, and manual completion
 - Drift-backed Fact Engine preserving scheduling, response, deferral, exercise, and completion facts
 - History v1 with seven-day summaries and expandable day-level detail
-- Insight Engine v1 with deterministic Today and rolling seven-day metrics, plus up to three evidence-supported observations
+- Insight Engine v1 with deterministic Today and rolling seven-day metrics,
+  plus schedule-backed current-week completion and up to three
+  evidence-supported observations
 - Home Dashboard v2 with a full-screen, live next-Recess hero above compact
   local daily progress and one ranked Insight Engine observation
 - Centered completion transition with curated, context-aware encouragement that
@@ -32,7 +34,7 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 - Sprint 5.1 Product Polish with clearer copy, large-text-safe Settings,
   improved semantics, standard Workday navigation, and restrained native
   haptics
-- Release candidate `1.0.0-rc.1+4`, with refined native
+- Beta candidate `1.7.0-beta.3+5`, with refined native
   identity, cream launch surfaces, local release-signing configuration, upgrade
   preservation coverage, resume-time Bell reconciliation, and an explicit
   release-readiness checklist
@@ -48,7 +50,7 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
 ## Documentation
 
-The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.0.0-rc.1.docx](docs/Recess_Master_Documentation_Index_v1.0.0-rc.1.docx). Version 1.0.0-rc.1 is the current Release Candidate. Version 1.6.1 remains the stable baseline; beta releases and lower versions remain historical. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), and [beta.2 production polish](docs/Recess_Beta2_ProductionPolish.md).
+The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.7.0-beta.3.docx](docs/Recess_Master_Documentation_Index_v1.7.0-beta.3.docx). Version 1.7.0-beta.3 is the current Beta candidate. Version 1.6.1 remains the stable baseline; the prior release candidate and beta releases remain preserved as historical records. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), [beta.2 production polish](docs/Recess_Beta2_ProductionPolish.md), and the [beta.3 weekly Insight correction](docs/Recess_Beta3_WeeklyInsightFix.md).
 
 ## Why is the source public?
 
@@ -70,7 +72,7 @@ permission. Platform projects can be generated with
 Installation, signing, upgrade, asset, and release-validation instructions are
 recorded in [the Sprint 5.2 release checklist](docs/Recess_Beta_Release_Checklist_v1.7.0-beta.1.md).
 Visual and audio provenance is tracked in the
-[current release asset manifest](docs/Recess_Release_Asset_Manifest_v1.0.0-rc.1.md).
+[current release asset manifest](docs/Recess_Release_Asset_Manifest_v1.7.0-beta.3.md).
 Changes in this candidate are summarized in the
-[v1.0.0-rc.1 release notes](docs/Recess_Release_Notes_v1.0.0-rc.1.md) and
+[v1.7.0-beta.3 release notes](docs/Recess_Release_Notes_v1.7.0-beta.3.md) and
 [CHANGELOG.md](CHANGELOG.md).

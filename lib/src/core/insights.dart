@@ -1,5 +1,6 @@
 import '../exercises/exercise.dart';
 import '../exercises/exercise_repository.dart';
+import 'cadence_schedule.dart';
 import 'database.dart';
 import 'models.dart';
 
@@ -106,6 +107,7 @@ class InsightEngine {
   InsightSummary summarize({
     required List<RecessSession> sessions,
     required List<Exercise> exercises,
+    List<DateTime> expectedWeeklyOccurrences = const [],
     required DateTime now,
   }) {
     final todayStart = DateTime(now.year, now.month, now.day);
@@ -115,6 +117,18 @@ class InsightEngine {
     final current = _inRange(sessions, currentStart, tomorrow);
     final previous = _inRange(sessions, previousStart, currentStart);
     final today = _inRange(sessions, todayStart, tomorrow);
+    final week = currentLocalCalendarWeek(now);
+    final weeklySessions = _inRange(sessions, week.start, week.end);
+    final expectedThisWeek = expectedWeeklyOccurrences
+        .where((time) => !time.isBefore(week.start) && time.isBefore(week.end))
+        .toList(growable: false);
+    final expectedWeeklyIds =
+        expectedThisWeek.map((time) => time.millisecondsSinceEpoch).toSet();
+    final completedScheduledThisWeek = _completed(weeklySessions)
+        .map((session) => session.originalScheduledAt.millisecondsSinceEpoch)
+        .where(expectedWeeklyIds.contains)
+        .toSet()
+        .length;
     final exerciseById = {
       for (final exercise in exercises) exercise.id: exercise
     };
@@ -126,7 +140,11 @@ class InsightEngine {
         _durations(completedCurrent, (session) => session.completedDuration);
 
     final candidates = <_ObservationCandidate>[
-      ..._weeklyCompletion(current, completedCurrent),
+      ..._weeklyCompletion(
+        expectedThisWeek.length,
+        completedScheduledThisWeek,
+        hasStarted: expectedThisWeek.any((time) => !time.isAfter(now)),
+      ),
       ..._lateDeferrals(current),
       ..._responseImprovement(current, previous),
       ..._morningCompletion(current),
@@ -168,20 +186,21 @@ class InsightEngine {
   }
 
   List<_ObservationCandidate> _weeklyCompletion(
-    List<RecessSession> sessions,
-    List<RecessSession> completed,
-  ) {
-    if (sessions.length < minimumWeeklyOccurrences) return const [];
+    int expected,
+    int completed, {
+    required bool hasStarted,
+  }) {
+    if (!hasStarted || expected < minimumWeeklyOccurrences) return const [];
     return [
       _ObservationCandidate(
-        strength: (sessions.length / 20).clamp(0.0, 0.5),
+        strength: (expected / 20).clamp(0.0, 0.5),
         observation: InsightObservation(
           type: InsightObservationType.weeklyCompletion,
-          title: 'Seven-day completion',
+          title: 'Weekly completion',
           description:
-              'You completed ${completed.length} of ${sessions.length} scheduled Recesses this week.',
-          supportingValue: completed.length / sessions.length,
-          comparisonPeriod: 'Last 7 days',
+              'You completed $completed of $expected scheduled Recesses this week.',
+          supportingValue: completed / expected,
+          comparisonPeriod: 'This calendar week',
         ),
       ),
     ];
@@ -324,6 +343,17 @@ class InsightService {
 
   Future<InsightSummary> load(DateTime now) async {
     final today = DateTime(now.year, now.month, now.day);
+    final week = currentLocalCalendarWeek(now);
+    final schedule = await database.schedule();
+    final preferences = await database.preferences();
+    final expectedWeeklyOccurrences = schedule == null
+        ? const <DateTime>[]
+        : scheduledBellTimesInRange(
+            schedule: schedule,
+            preferences: preferences,
+            start: week.start,
+            end: week.end,
+          );
     final sessions = await database.sessionsInRange(
       today.subtract(const Duration(days: 13)),
       DateTime(now.year, now.month, now.day + 1),
@@ -331,6 +361,7 @@ class InsightService {
     return engine.summarize(
       sessions: sessions,
       exercises: await exercises.load(),
+      expectedWeeklyOccurrences: expectedWeeklyOccurrences,
       now: now,
     );
   }

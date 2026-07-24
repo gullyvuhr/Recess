@@ -259,8 +259,9 @@ void main() {
 
   testWidgets('shows only the highest-ranked observation', (tester) async {
     await saveSchedule();
-    for (var day = 17; day <= 20; day++) {
-      final scheduled = DateTime(2026, 7, day, 10);
+    now = DateTime(2026, 7, 20, 14);
+    for (var hour = 10; hour <= 13; hour++) {
+      final scheduled = DateTime(2026, 7, 20, hour);
       final session = await database.createSession(
         scheduledAt: scheduled,
         createdAt: scheduled.subtract(const Duration(minutes: 5)),
@@ -279,7 +280,7 @@ void main() {
     await pumpHome(tester);
 
     expect(
-      find.text('You completed 4 of 4 scheduled Recesses this week.'),
+      find.text('You completed 4 of 49 scheduled Recesses this week.'),
       findsOneWidget,
     );
     expect(find.text('Seven-day completion'), findsNothing);

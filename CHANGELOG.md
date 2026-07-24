@@ -2,6 +2,26 @@
 
 All notable Recess changes are recorded here.
 
+## 1.7.0-beta.3 - 2026-07-24
+
+### Fixed
+
+- Weekly completion now measures scheduled completions against every expected
+  occurrence in the active Bell Schedule for the current local Monday-Sunday
+  week.
+- Future scheduled Bells remain in the denominator, while manual or ad hoc
+  Recesses are excluded.
+- Quiet Hours suppress expected occurrences without changing cadence.
+- Bell scheduling and weekly Insight derivation now share Cadence Schedule as
+  the authoritative expected-occurrence calculation.
+
+### Verification
+
+- Formatting, static analysis, and the complete automated test suite pass.
+- Regression coverage includes multiple daily Bells, future weekly
+  occurrences, completed and uncompleted occurrences, Quiet Hours, ad hoc
+  sessions, and local week boundaries.
+
 ## 1.0.0-rc.1 - 2026-07-23
 
 ### Added

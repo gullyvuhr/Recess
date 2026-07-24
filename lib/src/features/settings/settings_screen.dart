@@ -12,8 +12,8 @@ import '../../core/bell_audio.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const appVersion = '1.0.0-rc.1';
-  static const buildNumber = '4';
+  static const appVersion = '1.7.0-beta.3';
+  static const buildNumber = '5';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
             const _AboutRecess(),
             const SizedBox(height: 8),
             Text(
-              'Release candidate · Version $appVersion ($buildNumber) · Offline First',
+              'Beta · Version $appVersion ($buildNumber) · Offline First',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

@@ -83,6 +83,71 @@ void main() {
     expect(times.last, DateTime(2026, 7, 19, 14));
   });
 
+  test('expands every active occurrence across a local calendar week', () {
+    const schedule = WorkSchedule(
+      startMinutes: 9 * 60,
+      endMinutes: 12 * 60,
+      cadenceMinutes: 60,
+    );
+
+    final times = scheduledBellTimesInRange(
+      schedule: schedule,
+      preferences: const RecessPreferences(),
+      start: DateTime(2026, 7, 20),
+      end: DateTime(2026, 7, 27),
+    );
+
+    expect(times, hasLength(14));
+    expect(times.take(4), [
+      DateTime(2026, 7, 20, 10),
+      DateTime(2026, 7, 20, 11),
+      DateTime(2026, 7, 21, 10),
+      DateTime(2026, 7, 21, 11),
+    ]);
+    expect(times.last, DateTime(2026, 7, 26, 11));
+  });
+
+  test('local week starts Monday and excludes adjacent weeks', () {
+    final week = currentLocalCalendarWeek(DateTime(2026, 7, 26, 23, 30));
+    final times = scheduledBellTimesInRange(
+      schedule: const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 11 * 60,
+      ),
+      preferences: const RecessPreferences(),
+      start: week.start,
+      end: week.end,
+    );
+
+    expect(week.start, DateTime(2026, 7, 20));
+    expect(week.end, DateTime(2026, 7, 27));
+    expect(times.first, DateTime(2026, 7, 20, 10));
+    expect(times.last, DateTime(2026, 7, 26, 10));
+    expect(times, isNot(contains(DateTime(2026, 7, 19, 10))));
+    expect(times, isNot(contains(DateTime(2026, 7, 27, 10))));
+  });
+
+  test('range expansion excludes times disabled by Quiet Hours', () {
+    final times = scheduledBellTimesInRange(
+      schedule: const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 13 * 60,
+      ),
+      preferences: const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 11 * 60,
+        quietHoursEndMinutes: 12 * 60,
+      ),
+      start: DateTime(2026, 7, 20),
+      end: DateTime(2026, 7, 21),
+    );
+
+    expect(times, [
+      DateTime(2026, 7, 20, 10),
+      DateTime(2026, 7, 20, 12),
+    ]);
+  });
+
   test('cadence notification IDs are stable and unique per Bell time', () {
     final first = DateTime(2026, 7, 19, 10);
     final second = DateTime(2026, 7, 19, 11);

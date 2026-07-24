@@ -300,7 +300,7 @@ class RecessSessionService {
     return cadenceBellTimes(
       schedule: schedule,
       now: now,
-      include: (time) => !isDuringQuietHours(time, preferences),
+      preferences: preferences,
     );
   }
 

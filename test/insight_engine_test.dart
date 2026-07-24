@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recess/src/core/cadence_schedule.dart';
 import 'package:recess/src/core/insights.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/exercises/exercise.dart';
@@ -96,7 +97,7 @@ void main() {
     expect(summary.sevenDays.averageResponseTime, isNull);
   });
 
-  test('seven complete days produce stable aggregate metrics', () {
+  test('seven complete days produce stable rolling aggregate metrics', () {
     final sessions = [
       for (var day = 14; day <= 20; day++)
         _session(
@@ -123,13 +124,107 @@ void main() {
       summary.sevenDays.averageCompletedDuration,
       const Duration(minutes: 8),
     );
-    expect(
-      summary.observations.first.type,
-      InsightObservationType.weeklyCompletion,
+    expect(summary.observations, isEmpty);
+  });
+
+  test(
+      'weekly completion uses all active schedule occurrences and excludes manual sessions',
+      () {
+    final expected = scheduledBellTimesInRange(
+      schedule: const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 12 * 60,
+        cadenceMinutes: 60,
+      ),
+      preferences: const RecessPreferences(),
+      start: DateTime(2026, 7, 20),
+      end: DateTime(2026, 7, 27),
     );
+    final sessions = [
+      _session(
+        1,
+        DateTime(2026, 7, 20, 10),
+        status: RecessSessionStatus.completed,
+        startedAt: DateTime(2026, 7, 20, 10, 2),
+        completedAt: DateTime(2026, 7, 20, 10, 7),
+      ),
+      _session(
+        2,
+        DateTime(2026, 7, 20, 11),
+        status: RecessSessionStatus.rainChecked,
+      ),
+      _session(
+        3,
+        DateTime(2026, 7, 21, 10),
+        status: RecessSessionStatus.completed,
+        startedAt: DateTime(2026, 7, 21, 10, 1),
+        completedAt: DateTime(2026, 7, 21, 10, 6),
+      ),
+      _session(
+        4,
+        DateTime(2026, 7, 22, 10),
+        status: RecessSessionStatus.completed,
+        startedAt: DateTime(2026, 7, 22, 10, 1),
+        completedAt: DateTime(2026, 7, 22, 10, 6),
+      ),
+      _session(
+        5,
+        DateTime(2026, 7, 22, 10, 30),
+        status: RecessSessionStatus.completed,
+        startedAt: DateTime(2026, 7, 22, 10, 30),
+        completedAt: DateTime(2026, 7, 22, 10, 35),
+      ),
+    ];
+
+    final summary = engine.summarize(
+      sessions: sessions,
+      exercises: _exercises,
+      expectedWeeklyOccurrences: expected,
+      now: DateTime(2026, 7, 22, 12),
+    );
+
+    expect(expected, hasLength(14));
     expect(
-      summary.observations.first.description,
-      'You completed 7 of 7 scheduled Recesses this week.',
+      summary.observations
+          .singleWhere(
+            (value) => value.type == InsightObservationType.weeklyCompletion,
+          )
+          .description,
+      'You completed 3 of 14 scheduled Recesses this week.',
+    );
+  });
+
+  test('weekly completion excludes schedule times disabled by Quiet Hours', () {
+    final expected = scheduledBellTimesInRange(
+      schedule: const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 13 * 60,
+        cadenceMinutes: 60,
+      ),
+      preferences: const RecessPreferences(
+        quietHoursEnabled: true,
+        quietHoursStartMinutes: 11 * 60,
+        quietHoursEndMinutes: 12 * 60,
+      ),
+      start: DateTime(2026, 7, 20),
+      end: DateTime(2026, 7, 27),
+    );
+
+    final summary = engine.summarize(
+      sessions: const [],
+      exercises: _exercises,
+      expectedWeeklyOccurrences: expected,
+      now: DateTime(2026, 7, 22, 12),
+    );
+
+    expect(expected, hasLength(14));
+    expect(
+      summary.observations
+          .singleWhere(
+            (value) => value.type == InsightObservationType.weeklyCompletion,
+          )
+          .description,
+      'You completed 0 of 14 scheduled Recesses this week.',
     );
   });
 
