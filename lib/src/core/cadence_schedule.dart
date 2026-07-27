@@ -1,6 +1,8 @@
 import 'models.dart';
 
-const cadenceScheduleDays = 7;
+// Eight calendar days guarantees a next occurrence for a one-day-per-week
+// schedule even after that day's final Bell.
+const cadenceScheduleDays = 8;
 const maxScheduledCadenceBells = 60;
 
 ({DateTime start, DateTime end}) currentLocalCalendarWeek(DateTime now) {
@@ -73,6 +75,7 @@ List<DateTime> scheduledBellTimesInRange({
       firstDay.day + dayOffset,
     );
     if (!day.isBefore(end)) break;
+    if (!schedule.isWorkDay(day)) continue;
     for (var minutes = schedule.startMinutes + schedule.cadenceMinutes;
         minutes < schedule.endMinutes &&
             (limit == null || result.length < limit);

@@ -47,7 +47,7 @@ void main() {
             (value) => value.type == InsightObservationType.weeklyCompletion,
           )
           .description,
-      'You completed 1 of 14 scheduled Recesses this week.',
+      'You completed 1 of 10 scheduled Recesses this week.',
     );
   });
 }

@@ -183,14 +183,14 @@ void main() {
       now: DateTime(2026, 7, 22, 12),
     );
 
-    expect(expected, hasLength(14));
+    expect(expected, hasLength(10));
     expect(
       summary.observations
           .singleWhere(
             (value) => value.type == InsightObservationType.weeklyCompletion,
           )
           .description,
-      'You completed 3 of 14 scheduled Recesses this week.',
+      'You completed 3 of 10 scheduled Recesses this week.',
     );
   });
 
@@ -217,14 +217,14 @@ void main() {
       now: DateTime(2026, 7, 22, 12),
     );
 
-    expect(expected, hasLength(14));
+    expect(expected, hasLength(10));
     expect(
       summary.observations
           .singleWhere(
             (value) => value.type == InsightObservationType.weeklyCompletion,
           )
           .description,
-      'You completed 0 of 14 scheduled Recesses this week.',
+      'You completed 0 of 10 scheduled Recesses this week.',
     );
   });
 

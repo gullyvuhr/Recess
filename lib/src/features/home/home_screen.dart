@@ -224,7 +224,7 @@ class _NextRecessHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (scheduledAt != null && !active)
-            _ScheduledTime(scheduledAt: scheduledAt)
+            _ScheduledTime(scheduledAt: scheduledAt, now: now)
           else
             Text(
               title!,
@@ -300,9 +300,10 @@ class _NextRecessHero extends StatelessWidget {
 }
 
 class _ScheduledTime extends StatelessWidget {
-  const _ScheduledTime({required this.scheduledAt});
+  const _ScheduledTime({required this.scheduledAt, required this.now});
 
   final DateTime scheduledAt;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
@@ -322,35 +323,59 @@ class _ScheduledTime extends StatelessWidget {
       builder: (context, constraints) {
         final responsiveSize =
             (constraints.maxWidth * 0.22).clamp(56.0, 82.0).toDouble();
-        return FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        final isToday = scheduledAt.year == now.year &&
+            scheduledAt.month == now.month &&
+            scheduledAt.day == now.day;
+        return Column(
+          children: [
+            if (!isToday) ...[
               Text(
-                value,
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontSize: responsiveSize,
-                      height: 1,
-                    ),
+                _weekdayName(scheduledAt.weekday),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              if (period != null) ...[
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 7),
-                  child: Text(
-                    period,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
+              const SizedBox(height: 4),
             ],
-          ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          fontSize: responsiveSize,
+                          height: 1,
+                        ),
+                  ),
+                  if (period != null) ...[
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Text(
+                        period,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
   }
+
+  String _weekdayName(int weekday) => const [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ][weekday - 1];
 }
 
 class _TodayProgress extends StatelessWidget {

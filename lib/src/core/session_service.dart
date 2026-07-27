@@ -310,7 +310,9 @@ class RecessSessionService {
     BellSound? sound,
   }) async {
     final preferences = await _database.preferences();
-    if (isDuringQuietHours(scheduledAt, preferences)) {
+    final schedule = await _database.schedule();
+    if ((schedule != null && !schedule.isWorkDay(scheduledAt)) ||
+        isDuringQuietHours(scheduledAt, preferences)) {
       await _notifications.cancelDeferredBell();
       return true;
     }

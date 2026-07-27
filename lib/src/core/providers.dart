@@ -112,12 +112,9 @@ final homeRecessStatusProvider = FutureProvider<HomeRecessStatus?>((ref) async {
   if (session?.status == RecessSessionStatus.active) {
     return const HomeRecessStatus(HomeRecessState.active);
   }
-  final now = ref.watch(clockProvider)();
-  final today = DateTime(now.year, now.month, now.day);
   if (session != null &&
       (session.status == RecessSessionStatus.scheduled ||
-          session.status == RecessSessionStatus.deferred) &&
-      session.workdayDate == today) {
+          session.status == RecessSessionStatus.deferred)) {
     return HomeRecessStatus(
       HomeRecessState.scheduled,
       scheduledAt: session.scheduledAt,

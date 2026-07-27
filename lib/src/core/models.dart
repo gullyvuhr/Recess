@@ -64,15 +64,27 @@ class HomeRecessStatus {
 }
 
 class WorkSchedule {
+  static const Set<int> defaultWorkDays = {
+    DateTime.monday,
+    DateTime.tuesday,
+    DateTime.wednesday,
+    DateTime.thursday,
+    DateTime.friday,
+  };
+
   const WorkSchedule({
     required this.startMinutes,
     required this.endMinutes,
     this.cadenceMinutes = 60,
+    this.workDays = defaultWorkDays,
   }) : assert(cadenceMinutes > 0);
 
   final int startMinutes;
   final int endMinutes;
   final int cadenceMinutes;
+  final Set<int> workDays;
+
+  bool isWorkDay(DateTime date) => workDays.contains(date.weekday);
 
   int get bellMinutes => startMinutes + (endMinutes - startMinutes) ~/ 2;
 }

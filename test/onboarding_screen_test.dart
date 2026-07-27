@@ -31,6 +31,29 @@ void main() {
     expect(find.text('Every 60 minutes'), findsOneWidget);
     expect(find.text('9:00 AM'), findsOneWidget);
     expect(find.text('5:00 PM'), findsOneWidget);
+    expect(find.text('Work Days'), findsOneWidget);
+    for (final day in [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday'
+    ]) {
+      expect(
+        tester
+            .widget<FilterChip>(find.widgetWithText(FilterChip, day))
+            .selected,
+        isTrue,
+      );
+    }
+    for (final day in ['Sunday', 'Saturday']) {
+      expect(
+        tester
+            .widget<FilterChip>(find.widgetWithText(FilterChip, day))
+            .selected,
+        isFalse,
+      );
+    }
   });
 
   testWidgets('editing loads the complete persisted work schedule',
@@ -72,6 +95,8 @@ void main() {
       editing: true,
     );
 
+    await tester.ensureVisible(find.byKey(const ValueKey('bell-cadence')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('bell-cadence')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Every 45 minutes').last);

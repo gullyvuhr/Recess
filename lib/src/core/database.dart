@@ -148,6 +148,9 @@ class RecessDatabase extends GeneratedDatabase {
 
   Future<void> _ensureSchema() async {
     await customStatement(_createSettings);
+    await customStatement(
+      "INSERT OR IGNORE INTO settings(key, value) VALUES('work_days', '1,2,3,4,5')",
+    );
     await customStatement(_createLegacyEntries);
     await customStatement(_createSessions);
     await customStatement(_createOneOpenSessionIndex);
@@ -184,6 +187,8 @@ class RecessDatabase extends GeneratedDatabase {
       await setSetting('work_start', '${schedule.startMinutes}');
       await setSetting('work_end', '${schedule.endMinutes}');
       await setSetting('cadence_minutes', '${schedule.cadenceMinutes}');
+      await setSetting(
+          'work_days', (schedule.workDays.toList()..sort()).join(','));
       await setSetting('onboarding_complete', 'true');
     });
   }
@@ -192,12 +197,26 @@ class RecessDatabase extends GeneratedDatabase {
     final start = await setting('work_start');
     final end = await setting('work_end');
     final cadence = await setting('cadence_minutes');
+    final workDays = _workDays(await setting('work_days'));
     if (start == null || end == null) return null;
     return WorkSchedule(
       startMinutes: int.parse(start),
       endMinutes: int.parse(end),
       cadenceMinutes: cadence == null ? 60 : int.parse(cadence),
+      workDays: workDays,
     );
+  }
+
+  Set<int> _workDays(String? value) {
+    final parsed = value
+        ?.split(',')
+        .map(int.tryParse)
+        .whereType<int>()
+        .where((day) => day >= DateTime.monday && day <= DateTime.sunday)
+        .toSet();
+    return parsed == null || parsed.isEmpty
+        ? WorkSchedule.defaultWorkDays
+        : Set.unmodifiable(parsed);
   }
 
   Future<RecessPreferences> preferences() async {

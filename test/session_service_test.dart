@@ -32,7 +32,19 @@ void main() {
       clock: () => now,
     );
     await database.saveSchedule(
-      const WorkSchedule(startMinutes: 9 * 60, endMinutes: 17 * 60),
+      const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 17 * 60,
+        workDays: {
+          DateTime.monday,
+          DateTime.tuesday,
+          DateTime.wednesday,
+          DateTime.thursday,
+          DateTime.friday,
+          DateTime.saturday,
+          DateTime.sunday,
+        },
+      ),
     );
   });
 
@@ -490,6 +502,15 @@ void main() {
         startMinutes: 9 * 60,
         endMinutes: 17 * 60,
         cadenceMinutes: 90,
+        workDays: {
+          DateTime.monday,
+          DateTime.tuesday,
+          DateTime.wednesday,
+          DateTime.thursday,
+          DateTime.friday,
+          DateTime.saturday,
+          DateTime.sunday,
+        },
       ),
     );
 

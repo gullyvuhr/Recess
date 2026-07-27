@@ -280,7 +280,7 @@ void main() {
     await pumpHome(tester);
 
     expect(
-      find.text('You completed 4 of 49 scheduled Recesses this week.'),
+      find.text('You completed 4 of 35 scheduled Recesses this week.'),
       findsOneWidget,
     );
     expect(find.text('Seven-day completion'), findsNothing);

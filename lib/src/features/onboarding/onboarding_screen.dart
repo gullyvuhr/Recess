@@ -18,6 +18,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 17, minute: 0);
   int _cadenceMinutes = 60;
+  Set<int> _workDays = {...WorkSchedule.defaultWorkDays};
   bool _checking = true;
   bool _saving = false;
 
@@ -44,6 +45,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             minute: schedule.endMinutes % 60,
           );
           _cadenceMinutes = schedule.cadenceMinutes;
+          _workDays = {...schedule.workDays};
         }
         _checking = false;
       });
@@ -72,6 +74,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         startMinutes: start,
         endMinutes: end,
         cadenceMinutes: _cadenceMinutes,
+        workDays: Set.unmodifiable(_workDays),
       );
       var permissionGranted = true;
       if (!widget.editing) {
@@ -184,6 +187,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
+                      'Work Days',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final day in _weekdays)
+                          FilterChip(
+                            key: ValueKey('work-day-${day.weekday}'),
+                            label: Text(day.label),
+                            selected: _workDays.contains(day.weekday),
+                            onSelected: _saving
+                                ? null
+                                : (selected) {
+                                    if (!selected && _workDays.length == 1) {
+                                      return;
+                                    }
+                                    setState(() => selected
+                                        ? _workDays.add(day.weekday)
+                                        : _workDays.remove(day.weekday));
+                                  },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
                       'How often should Bells ring?',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
@@ -227,6 +258,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
+
+const _weekdays = [
+  (weekday: DateTime.sunday, label: 'Sunday'),
+  (weekday: DateTime.monday, label: 'Monday'),
+  (weekday: DateTime.tuesday, label: 'Tuesday'),
+  (weekday: DateTime.wednesday, label: 'Wednesday'),
+  (weekday: DateTime.thursday, label: 'Thursday'),
+  (weekday: DateTime.friday, label: 'Friday'),
+  (weekday: DateTime.saturday, label: 'Saturday'),
+];
 
 class _TimeCard extends StatelessWidget {
   const _TimeCard(

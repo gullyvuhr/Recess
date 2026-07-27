@@ -11,6 +11,28 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
 }
 
+fun signingValue(property: String, environment: String): String? =
+    keystoreProperties.getProperty(property)?.takeIf(String::isNotBlank)
+        ?: System.getenv(environment)?.takeIf(String::isNotBlank)
+
+val releaseSigningValues = mapOf(
+    "storeFile" to signingValue("storeFile", "RECESS_KEYSTORE_PATH"),
+    "storePassword" to signingValue("storePassword", "RECESS_STORE_PASSWORD"),
+    "keyAlias" to signingValue("keyAlias", "RECESS_KEY_ALIAS"),
+    "keyPassword" to signingValue("keyPassword", "RECESS_KEY_PASSWORD"),
+)
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (releaseBuildRequested) {
+    val missing = releaseSigningValues.filterValues { it == null }.keys
+    check(missing.isEmpty()) {
+        "Release signing is not configured. Add ignored android/key.properties " +
+            "or set the RECESS_* signing environment variables. Missing: " +
+            missing.joinToString()
+    }
+}
+
 android {
     namespace = "com.recessapp.recess"
     compileSdk = flutter.compileSdkVersion
@@ -31,12 +53,12 @@ android {
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
+        if (releaseSigningValues.values.all { it != null }) {
             create("release") {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = releaseSigningValues.getValue("keyAlias")
+                keyPassword = releaseSigningValues.getValue("keyPassword")
+                storeFile = file(releaseSigningValues.getValue("storeFile")!!)
+                storePassword = releaseSigningValues.getValue("storePassword")
             }
         }
     }

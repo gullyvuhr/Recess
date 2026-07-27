@@ -4,10 +4,20 @@ import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/notifications.dart';
 
 void main() {
+  const allDays = {
+    DateTime.monday,
+    DateTime.tuesday,
+    DateTime.wednesday,
+    DateTime.thursday,
+    DateTime.friday,
+    DateTime.saturday,
+    DateTime.sunday,
+  };
   const hourly = WorkSchedule(
     startMinutes: 9 * 60,
     endMinutes: 17 * 60,
     cadenceMinutes: 60,
+    workDays: allDays,
   );
 
   test('generates every cadence time inside a workday', () {
@@ -39,6 +49,7 @@ void main() {
       startMinutes: 9 * 60,
       endMinutes: 10 * 60,
       cadenceMinutes: 30,
+      workDays: allDays,
     );
 
     expect(
@@ -56,6 +67,7 @@ void main() {
       startMinutes: 9 * 60 + 15,
       endMinutes: 11 * 60,
       cadenceMinutes: 35,
+      workDays: allDays,
     );
 
     final times = cadenceBellTimes(
@@ -97,14 +109,14 @@ void main() {
       end: DateTime(2026, 7, 27),
     );
 
-    expect(times, hasLength(14));
+    expect(times, hasLength(10));
     expect(times.take(4), [
       DateTime(2026, 7, 20, 10),
       DateTime(2026, 7, 20, 11),
       DateTime(2026, 7, 21, 10),
       DateTime(2026, 7, 21, 11),
     ]);
-    expect(times.last, DateTime(2026, 7, 26, 11));
+    expect(times.last, DateTime(2026, 7, 24, 11));
   });
 
   test('local week starts Monday and excludes adjacent weeks', () {
@@ -122,7 +134,7 @@ void main() {
     expect(week.start, DateTime(2026, 7, 20));
     expect(week.end, DateTime(2026, 7, 27));
     expect(times.first, DateTime(2026, 7, 20, 10));
-    expect(times.last, DateTime(2026, 7, 26, 10));
+    expect(times.last, DateTime(2026, 7, 24, 10));
     expect(times, isNot(contains(DateTime(2026, 7, 19, 10))));
     expect(times, isNot(contains(DateTime(2026, 7, 27, 10))));
   });
