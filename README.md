@@ -40,7 +40,12 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
   release-readiness checklist
 - Riverpod state management and GoRouter navigation
 
-Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
+Recess has no servers or accounts and does not send data for analytics,
+advertising, or synchronization. On Android, the operating system may preserve
+the local Recess database through system backup or device transfer when the
+user has those features enabled. Native notification caches are excluded and
+notification permission or exact-alarm access may need to be granted again on
+the restored device. See [Privacy](PRIVACY.md) for details.
 
 ## Product backlog
 

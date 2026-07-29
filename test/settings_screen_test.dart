@@ -117,8 +117,15 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Recess is a quiet reminder'), findsOneWidget);
-    expect(find.textContaining('does not collect or send personal data'),
-        findsOneWidget);
+    expect(
+      find.textContaining(
+        'Recess works offline and stores your settings and History locally on this device. '
+        'If Android backup or device transfer is enabled, Android may copy that data to your Google backup or another device. '
+        'Recess has no servers or accounts and does not send your data for analytics, advertising, or synchronization. '
+        'Notification permission and exact-alarm access may need to be granted again after restoring to a new device.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('updates duration, difficulty, and bell selection',

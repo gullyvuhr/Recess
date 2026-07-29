@@ -362,9 +362,10 @@ class _AboutRecess extends StatelessWidget {
             child: Text(
               'Recess is a quiet reminder to step away from work and make time for yourself. '
               'It exists because small breaks are easy to postpone. '
-              'Everything works offline, with no account or cloud dependency. '
-              'Recess has no analytics and does not collect or send personal data. '
-              'Your settings and history stay on this device. '
+              'Recess works offline and stores your settings and History locally on this device. '
+              'If Android backup or device transfer is enabled, Android may copy that data to your Google backup or another device. '
+              'Recess has no servers or accounts and does not send your data for analytics, advertising, or synchronization. '
+              'Notification permission and exact-alarm access may need to be granted again after restoring to a new device. '
               'The simplicity is intentional: fewer distractions, more room to take a break.',
             ),
           ),

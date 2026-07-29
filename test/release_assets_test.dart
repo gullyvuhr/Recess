@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xml/xml.dart';
 
 void main() {
   test('canonical Recess bell masters are original scalable assets', () {
@@ -84,6 +85,69 @@ void main() {
     );
   });
 
+  test('Android backup is explicit and limited to durable Recess data', () {
+    final manifest = XmlDocument.parse(
+      File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
+    );
+    final legacyRules = XmlDocument.parse(
+      File(
+        'android/app/src/main/res/xml/backup_rules.xml',
+      ).readAsStringSync(),
+    );
+    final extractionRules = XmlDocument.parse(
+      File(
+        'android/app/src/main/res/xml/data_extraction_rules.xml',
+      ).readAsStringSync(),
+    );
+
+    const androidNamespace = 'http://schemas.android.com/apk/res/android';
+    final application = manifest.rootElement.getElement('application');
+    expect(application, isNotNull);
+    expect(
+      application!.getAttribute('allowBackup', namespace: androidNamespace),
+      'true',
+    );
+    expect(
+      application.getAttribute(
+        'fullBackupContent',
+        namespace: androidNamespace,
+      ),
+      '@xml/backup_rules',
+    );
+    expect(
+      application.getAttribute(
+        'dataExtractionRules',
+        namespace: androidNamespace,
+      ),
+      '@xml/data_extraction_rules',
+    );
+
+    expect(legacyRules.rootElement.name.local, 'full-backup-content');
+    _expectOnlyAppFlutterInclude(legacyRules.rootElement);
+
+    expect(extractionRules.rootElement.name.local, 'data-extraction-rules');
+    final cloudBackups = extractionRules.rootElement
+        .findElements('cloud-backup')
+        .toList(growable: false);
+    expect(cloudBackups, hasLength(1));
+    final cloudBackup = cloudBackups.single;
+    expect(
+      cloudBackup.getAttribute('disableIfNoEncryptionCapabilities'),
+      'true',
+    );
+    _expectOnlyAppFlutterInclude(cloudBackup);
+
+    final deviceTransfers = extractionRules.rootElement
+        .findElements('device-transfer')
+        .toList(growable: false);
+    expect(deviceTransfers, hasLength(1));
+    _expectOnlyAppFlutterInclude(deviceTransfers.single);
+
+    // getApplicationDocumentsDirectory() maps to app_flutter on Android.
+    // Any future file written there becomes backup eligible and requires
+    // privacy review before release.
+  });
+
   test('iOS AppIcon catalog and native splash are complete', () {
     final directory = Directory(
       'ios/Runner/Assets.xcassets/AppIcon.appiconset',
@@ -134,6 +198,13 @@ void main() {
     expect(pubspec, isNot(contains('cupertino_icons:')));
     expect(notifications, isNot(contains('repeatsDaily')));
   });
+}
+
+void _expectOnlyAppFlutterInclude(XmlElement parent) {
+  final includes = parent.findAllElements('include').toList(growable: false);
+  expect(includes, hasLength(1));
+  expect(includes.single.getAttribute('domain'), 'root');
+  expect(includes.single.getAttribute('path'), 'app_flutter');
 }
 
 (int, int) _pngDimensions(File file) {
