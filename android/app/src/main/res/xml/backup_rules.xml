@@ -2,8 +2,4 @@
 <full-backup-content>
     <!-- app_flutter is dedicated to recess.sqlite and its possible SQLite sidecars. -->
     <include domain="root" path="app_flutter" />
-
-    <!-- Native notification schedules are transient and rebuilt from the database. -->
-    <exclude domain="sharedpref" path="scheduled_notifications.xml" />
-    <exclude domain="sharedpref" path="notification_plugin_cache.xml" />
 </full-backup-content>
