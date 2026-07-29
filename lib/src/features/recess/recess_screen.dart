@@ -59,7 +59,7 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
       if (!mounted) return;
       final completed = result.value;
       unawaited(HapticFeedback.lightImpact().catchError((_) {}));
-      final isManual = completed.originalScheduledAt == completed.createdAt;
+      final isManual = completed.isManual;
       final next = homeStatus?.scheduledAt;
       setState(() {
         _completionContext = CompletionMessageContext(
@@ -104,9 +104,8 @@ class _RecessScreenState extends ConsumerState<RecessScreen> {
               isCompleting: _completing,
             )
           : const _InvalidSession(),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, __) => const _InvalidSession(),
     );
   }
@@ -201,14 +200,13 @@ class _ActiveSession extends ConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      value.description,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(value.description, textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     Text(
-                      const ExercisePrescriptionService()
-                          .generate(value, duration),
+                      const ExercisePrescriptionService().generate(
+                        value,
+                        duration,
+                      ),
                       style: Theme.of(context).textTheme.labelLarge,
                       textAlign: TextAlign.center,
                     ),
@@ -224,9 +222,8 @@ class _ActiveSession extends ConsumerWidget {
                 ),
               ),
             ),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, __) => const _InvalidSession(),
     );
   }

@@ -26,8 +26,10 @@ void main() {
       cadenceMinutes: 60,
     );
 
-    expect((await database.session(completed.id))!.status,
-        RecessSessionStatus.completed);
+    expect(
+      (await database.session(completed.id))!.status,
+      RecessSessionStatus.completed,
+    );
     expect((await database.completedSessions()).single.id, completed.id);
     expect(future.id, isNot(completed.id));
     expect(await _sessionCount(database), 2);
@@ -78,31 +80,33 @@ void main() {
     expect((await database.deferredSessions()).single.id, session.id);
   });
 
-  test('acknowledgement, response delay, and duration remain queryable',
-      () async {
-    final scheduled = DateTime(2026, 7, 19, 10);
-    final session = await database.createSession(
-      scheduledAt: scheduled,
-      createdAt: DateTime(2026, 7, 19, 9),
-    );
-    await database.markBellOpened(session.id, DateTime(2026, 7, 19, 10, 1));
-    await database.markBellOpened(session.id, DateTime(2026, 7, 19, 10, 2));
-    await database.startSession(
-      session.id,
-      DateTime(2026, 7, 19, 10, 5),
-      'shoulder-rolls',
-    );
-    final completed = await database.completeSession(
-      session.id,
-      DateTime(2026, 7, 19, 10, 20),
-    );
+  test(
+    'acknowledgement, response delay, and duration remain queryable',
+    () async {
+      final scheduled = DateTime(2026, 7, 19, 10);
+      final session = await database.createSession(
+        scheduledAt: scheduled,
+        createdAt: DateTime(2026, 7, 19, 9),
+      );
+      await database.markBellOpened(session.id, DateTime(2026, 7, 19, 10, 1));
+      await database.markBellOpened(session.id, DateTime(2026, 7, 19, 10, 2));
+      await database.startSession(
+        session.id,
+        DateTime(2026, 7, 19, 10, 5),
+        'shoulder-rolls',
+      );
+      final completed = await database.completeSession(
+        session.id,
+        DateTime(2026, 7, 19, 10, 20),
+      );
 
-    expect(completed.originalScheduledAt, scheduled);
-    expect(completed.acknowledgedAt, DateTime(2026, 7, 19, 10, 1));
-    expect(completed.responseDelay, const Duration(minutes: 5));
-    expect(completed.completedDuration, const Duration(minutes: 15));
-    expect(completed.workdayDate, DateTime(2026, 7, 19));
-  });
+      expect(completed.originalScheduledAt, scheduled);
+      expect(completed.acknowledgedAt, DateTime(2026, 7, 19, 10, 1));
+      expect(completed.responseDelay, const Duration(minutes: 5));
+      expect(completed.completedDuration, const Duration(minutes: 15));
+      expect(completed.workdayDate, DateTime(2026, 7, 19));
+    },
+  );
 
   test('date-range and local-day queries use original Bell time', () async {
     await _completedSession(
@@ -125,7 +129,9 @@ void main() {
     );
 
     expect(
-      (await database.sessionsForDay(DateTime(2026, 7, 19)))
+      (await database.sessionsForDay(
+        DateTime(2026, 7, 19),
+      ))
           .map((session) => session.id),
       [nineteenth.id],
     );
@@ -162,12 +168,16 @@ void main() {
     expect(counts[RecessSessionStatus.completed], 2);
     expect(counts[RecessSessionStatus.rainChecked], 1);
     expect(counts[RecessSessionStatus.scheduled], 0);
-    expect(await database.averageCompletedRecessDuration(),
-        const Duration(minutes: 15));
+    expect(
+      await database.averageCompletedRecessDuration(),
+      const Duration(minutes: 15),
+    );
     expect(await database.averageResponseDelay(), const Duration(minutes: 10));
     expect((await database.mostRecentCompletedSession())!.id, second.id);
-    expect((await database.completedSessions()).map((session) => session.id),
-        [second.id, first.id]);
+    expect((await database.completedSessions()).map((session) => session.id), [
+      second.id,
+      first.id,
+    ]);
   });
 
   test('terminal historical sessions reject further mutation', () async {
@@ -186,8 +196,10 @@ void main() {
       database.rainCheckSession(completed.id, DateTime(2026, 7, 19, 10)),
       throwsStateError,
     );
-    expect((await database.session(completed.id))!.completedAt,
-        DateTime(2026, 7, 19, 9, 5));
+    expect(
+      (await database.session(completed.id))!.completedAt,
+      DateTime(2026, 7, 19, 9, 5),
+    );
   });
 
   test('schema v4 migrates existing facts and preserves settings', () async {
@@ -239,6 +251,121 @@ void main() {
     expect(schedule!.startMinutes, 540);
     expect(schedule.endMinutes, 1020);
     expect(schedule.cadenceMinutes, 90);
+  });
+
+  test('schema v5 assigns explicit origins to existing sessions', () async {
+    await database.close();
+    final manualTime = DateTime(2026, 7, 19, 9);
+    final scheduledTime = DateTime(2026, 7, 19, 10);
+    final migrated = RecessDatabase(
+      NativeDatabase.memory(
+        setup: (rawDatabase) {
+          rawDatabase.execute(
+            'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+          );
+          rawDatabase.execute('''
+            CREATE TABLE recess_sessions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              original_scheduled_at INTEGER NOT NULL,
+              scheduled_at INTEGER NOT NULL,
+              acknowledged_at INTEGER,
+              started_at INTEGER,
+              completed_at INTEGER,
+              status TEXT NOT NULL,
+              deferral_type TEXT,
+              deferral_count INTEGER NOT NULL DEFAULT 0,
+              last_deferred_at INTEGER,
+              rain_checked_at INTEGER,
+              exercise_id TEXT,
+              cadence_minutes INTEGER NOT NULL DEFAULT 60,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          rawDatabase.execute(
+            '''
+              INSERT INTO recess_sessions(
+                original_scheduled_at, scheduled_at, started_at, completed_at,
+                status, exercise_id, created_at
+              ) VALUES(?, ?, ?, ?, 'completed', 'shoulder-rolls', ?)
+            ''',
+            [
+              manualTime.millisecondsSinceEpoch,
+              manualTime.millisecondsSinceEpoch,
+              manualTime.millisecondsSinceEpoch,
+              manualTime.add(const Duration(minutes: 5)).millisecondsSinceEpoch,
+              manualTime.millisecondsSinceEpoch,
+            ],
+          );
+          rawDatabase.execute(
+            '''
+              INSERT INTO recess_sessions(
+                original_scheduled_at, scheduled_at, started_at, completed_at,
+                status, exercise_id, created_at
+              ) VALUES(?, ?, ?, ?, 'completed', 'shoulder-rolls', ?)
+            ''',
+            [
+              scheduledTime.millisecondsSinceEpoch,
+              scheduledTime.millisecondsSinceEpoch,
+              scheduledTime.millisecondsSinceEpoch,
+              scheduledTime
+                  .add(const Duration(minutes: 5))
+                  .millisecondsSinceEpoch,
+              scheduledTime
+                  .subtract(const Duration(minutes: 30))
+                  .millisecondsSinceEpoch,
+            ],
+          );
+          rawDatabase.userVersion = 4;
+        },
+      ),
+    );
+    addTearDown(migrated.close);
+
+    final sessions = await migrated.completedSessions();
+
+    expect(
+      sessions.singleWhere((session) => session.id == 1).origin,
+      RecessSessionOrigin.manual,
+    );
+    expect(
+      sessions.singleWhere((session) => session.id == 2).origin,
+      RecessSessionOrigin.scheduled,
+    );
+  });
+
+  test('session origin is required and constrained by SQLite', () async {
+    final timestamp = DateTime(2026, 7, 19, 9).millisecondsSinceEpoch;
+
+    await expectLater(
+      database.customStatement(
+        "INSERT INTO recess_sessions(original_scheduled_at, scheduled_at, status, cadence_minutes, created_at) VALUES($timestamp, $timestamp, 'scheduled', 60, $timestamp)",
+      ),
+      throwsA(anything),
+    );
+    await expectLater(
+      database.customStatement(
+        "INSERT INTO recess_sessions(original_scheduled_at, scheduled_at, status, cadence_minutes, origin, created_at) VALUES($timestamp, $timestamp, 'scheduled', 60, NULL, $timestamp)",
+      ),
+      throwsA(anything),
+    );
+    await expectLater(
+      database.customStatement(
+        "INSERT INTO recess_sessions(original_scheduled_at, scheduled_at, status, cadence_minutes, origin, created_at) VALUES($timestamp, $timestamp, 'scheduled', 60, 'automatic', $timestamp)",
+      ),
+      throwsA(anything),
+    );
+
+    final scheduled = await database.createSession(
+      scheduledAt: DateTime.fromMillisecondsSinceEpoch(timestamp),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(timestamp),
+    );
+    final manual = await database.openOrCreateManualSession(
+      DateTime.fromMillisecondsSinceEpoch(timestamp),
+      'shoulder-rolls',
+    );
+
+    expect(scheduled.origin, RecessSessionOrigin.scheduled);
+    expect(manual.origin, RecessSessionOrigin.manual);
   });
 }
 

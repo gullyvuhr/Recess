@@ -1,12 +1,8 @@
-enum RecessSessionStatus {
-  scheduled,
-  deferred,
-  active,
-  completed,
-  rainChecked,
-}
+enum RecessSessionStatus { scheduled, deferred, active, completed, rainChecked }
 
 enum RecessDeferralType { fiveMinutes, afterThis }
+
+enum RecessSessionOrigin { scheduled, manual }
 
 enum ExerciseDifficulty { easy, standard, challenging }
 
@@ -98,6 +94,7 @@ class RecessSession {
     required this.createdAt,
     required this.deferralCount,
     required this.cadenceMinutes,
+    required this.origin,
     this.acknowledgedAt,
     this.startedAt,
     this.completedAt,
@@ -120,7 +117,11 @@ class RecessSession {
   final DateTime? rainCheckedAt;
   final String? exerciseId;
   final int cadenceMinutes;
+  final RecessSessionOrigin origin;
   final DateTime createdAt;
+
+  bool get isScheduled => origin == RecessSessionOrigin.scheduled;
+  bool get isManual => origin == RecessSessionOrigin.manual;
 
   bool get canDefer => status == RecessSessionStatus.scheduled;
 

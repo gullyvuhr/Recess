@@ -53,7 +53,7 @@ void main() {
   test('Start Recess begins one persisted session', () async {
     final scheduled = await _session(database, now);
 
-    final active = await service.start(scheduled.id);
+    final active = await service.startScheduled(scheduled.id);
 
     expect(active.id, scheduled.id);
     expect(active.status, RecessSessionStatus.active);
@@ -61,10 +61,12 @@ void main() {
     expect(active.completedAt, isNull);
     expect(active.exerciseId, isNotNull);
     final assignedExerciseId = active.exerciseId;
-    await expectLater(service.start(scheduled.id), throwsStateError);
+    await expectLater(service.startScheduled(scheduled.id), throwsStateError);
     expect(await _sessionCount(database), 1);
     expect(
-        (await database.session(scheduled.id))!.exerciseId, assignedExerciseId);
+      (await database.session(scheduled.id))!.exerciseId,
+      assignedExerciseId,
+    );
   });
 
   test('persisted difficulty controls the assigned exercise', () async {
@@ -101,7 +103,7 @@ void main() {
     );
     final scheduled = await _session(database, now);
 
-    final active = await service.start(scheduled.id);
+    final active = await service.startScheduled(scheduled.id);
 
     expect(active.status, RecessSessionStatus.active);
     expect(active.exerciseId, 'challenging-option');
@@ -128,10 +130,7 @@ void main() {
     await service.refreshBellSound();
 
     expect(notifications.cadenceSounds, isNotEmpty);
-    expect(
-      notifications.cadenceSounds,
-      everyElement(BellSound.coachWhistle),
-    );
+    expect(notifications.cadenceSounds, everyElement(BellSound.coachWhistle));
   });
 
   test('Give me a minute defers the same session for 5 minutes', () async {
@@ -150,8 +149,9 @@ void main() {
     expect(notifications.deferred.single.sessionId, scheduled.id);
     expect(notifications.deferred.single.scheduledAt, deferred.scheduledAt);
     expect(
-        notifications.cadence.every((call) => call.sessionId == scheduled.id),
-        isTrue);
+      notifications.cadence.every((call) => call.sessionId == scheduled.id),
+      isTrue,
+    );
     expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
@@ -172,21 +172,25 @@ void main() {
     expect(notifications.cadence.first.scheduledAt, DateTime(2026, 7, 19, 11));
   });
 
-  test('notification failure is reported without losing the deferral',
-      () async {
-    notifications.succeeds = false;
-    final scheduled = await _session(database, now);
+  test(
+    'notification failure is reported without losing the deferral',
+    () async {
+      notifications.succeeds = false;
+      final scheduled = await _session(database, now);
 
-    final result = await service.defer(
-      scheduled.id,
-      RecessDeferralType.fiveMinutes,
-    );
+      final result = await service.defer(
+        scheduled.id,
+        RecessDeferralType.fiveMinutes,
+      );
 
-    expect(result.notificationSucceeded, isFalse);
-    expect(result.value.status, RecessSessionStatus.deferred);
-    expect((await database.session(scheduled.id))!.status,
-        RecessSessionStatus.deferred);
-  });
+      expect(result.notificationSucceeded, isFalse);
+      expect(result.value.status, RecessSessionStatus.deferred);
+      expect(
+        (await database.session(scheduled.id))!.status,
+        RecessSessionStatus.deferred,
+      );
+    },
+  );
 
   test('Rain check is persisted and resumes normal Bell cadence', () async {
     final scheduled = await _session(database, now);
@@ -207,7 +211,7 @@ void main() {
 
   test('completion closes the active session lifecycle', () async {
     final scheduled = await _session(database, now);
-    final active = await service.start(scheduled.id);
+    final active = await service.startScheduled(scheduled.id);
     now = now.add(const Duration(minutes: 20));
 
     final completed = (await service.complete(active.id)).value;
@@ -228,11 +232,8 @@ void main() {
     now = DateTime(2026, 7, 19, 10);
     notifications.deliver(now);
     expect((await service.openBell('bell:${restored.id}'))!.id, restored.id);
-    await service.start(restored.id);
-    expect(
-      notifications.pendingTimes,
-      contains(DateTime(2026, 7, 19, 11)),
-    );
+    await service.startScheduled(restored.id);
+    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
 
     now = DateTime(2026, 7, 19, 10, 6);
     final result = await service.complete(restored.id);
@@ -245,16 +246,18 @@ void main() {
     expect(notifications.pendingTimes.first, DateTime(2026, 7, 19, 11));
     expect(
       notifications.cadence
-          .singleWhere(
-            (call) => call.scheduledAt == DateTime(2026, 7, 19, 11),
-          )
+          .singleWhere((call) => call.scheduledAt == DateTime(2026, 7, 19, 11))
           .sessionId,
       next.id,
     );
-    expect(notifications.pendingTimes,
-        isNot(contains(DateTime(2026, 7, 19, 10, 6))));
-    expect(notifications.pendingIds.toSet(),
-        hasLength(notifications.pendingIds.length));
+    expect(
+      notifications.pendingTimes,
+      isNot(contains(DateTime(2026, 7, 19, 10, 6))),
+    );
+    expect(
+      notifications.pendingIds.toSet(),
+      hasLength(notifications.pendingIds.length),
+    );
   });
 
   test('repeated cycles preserve noon and later cadence Bells', () async {
@@ -262,7 +265,7 @@ void main() {
     final ten = (await service.restore()).value!;
     now = DateTime(2026, 7, 19, 10);
     notifications.deliver(now);
-    await service.start(ten.id);
+    await service.startScheduled(ten.id);
     now = DateTime(2026, 7, 19, 10, 6);
     await service.complete(ten.id);
 
@@ -270,14 +273,16 @@ void main() {
     now = DateTime(2026, 7, 19, 11);
     notifications.deliver(now);
     await service.openBell('bell:${eleven.id}');
-    await service.start(eleven.id);
+    await service.startScheduled(eleven.id);
     now = DateTime(2026, 7, 19, 11, 6);
     await service.complete(eleven.id);
 
     expect(notifications.pendingTimes.first, DateTime(2026, 7, 19, 12));
     expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 16)));
-    expect(notifications.pendingIds.toSet(),
-        hasLength(notifications.pendingIds.length));
+    expect(
+      notifications.pendingIds.toSet(),
+      hasLength(notifications.pendingIds.length),
+    );
   });
 
   test('limited cancellation cannot silently remove the next Bell', () async {
@@ -290,44 +295,51 @@ void main() {
 
     expect(result.notificationSucceeded, isTrue);
     expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
-    expect(notifications.pendingIds.toSet(),
-        hasLength(notifications.pendingIds.length));
+    expect(
+      notifications.pendingIds.toSet(),
+      hasLength(notifications.pendingIds.length),
+    );
   });
 
-  test("today's progress is derived from persisted session timestamps",
-      () async {
-    final first = await _session(database, DateTime(2026, 7, 19, 9));
-    await database.startSession(
-      first.id,
-      DateTime(2026, 7, 19, 9, 5),
-      'shoulder-rolls',
-    );
-    await database.completeSession(first.id, DateTime(2026, 7, 19, 9, 25));
+  test(
+    "today's progress is derived from persisted session timestamps",
+    () async {
+      final first = await _session(database, DateTime(2026, 7, 19, 9));
+      await database.startSession(
+        first.id,
+        DateTime(2026, 7, 19, 9, 5),
+        'shoulder-rolls',
+      );
+      await database.completeSession(first.id, DateTime(2026, 7, 19, 9, 25));
 
-    final rain = await _session(database, DateTime(2026, 7, 19, 12));
-    await database.rainCheckSession(rain.id, DateTime(2026, 7, 19, 12));
+      final rain = await _session(database, DateTime(2026, 7, 19, 12));
+      await database.rainCheckSession(rain.id, DateTime(2026, 7, 19, 12));
 
-    final yesterday = await _session(database, DateTime(2026, 7, 18, 12));
-    await database.startSession(
-      yesterday.id,
-      DateTime(2026, 7, 18, 12),
-      'long-exhale',
-    );
-    await database.completeSession(yesterday.id, DateTime(2026, 7, 18, 12, 10));
+      final yesterday = await _session(database, DateTime(2026, 7, 18, 12));
+      await database.startSession(
+        yesterday.id,
+        DateTime(2026, 7, 18, 12),
+        'long-exhale',
+      );
+      await database.completeSession(
+        yesterday.id,
+        DateTime(2026, 7, 18, 12, 10),
+      );
 
-    final active = await _session(database, DateTime(2026, 7, 19, 11));
-    await database.startSession(
-      active.id,
-      DateTime(2026, 7, 19, 11, 5),
-      'shoulder-rolls',
-    );
+      final active = await _session(database, DateTime(2026, 7, 19, 11));
+      await database.startSession(
+        active.id,
+        DateTime(2026, 7, 19, 11, 5),
+        'shoulder-rolls',
+      );
 
-    final progress = await database.todayProgress(now: now);
+      final progress = await database.todayProgress(now: now);
 
-    expect(progress.started, 2);
-    expect(progress.completed, 1);
-    expect(progress.rainChecks, 1);
-  });
+      expect(progress.started, 2);
+      expect(progress.completed, 1);
+      expect(progress.rainChecks, 1);
+    },
+  );
 
   test('a returned deferred Bell cannot be deferred again', () async {
     final scheduled = await _session(database, now);
@@ -348,31 +360,36 @@ void main() {
     expect(notifications.deferred, hasLength(1));
   });
 
-  test('session assignment persists one exercise and avoids the last one',
-      () async {
-    final firstScheduled = await _session(database, now);
-    final first = await service.start(firstScheduled.id);
-    now = now.add(const Duration(minutes: 5));
-    await service.complete(first.id);
-    final secondScheduled = await database.openSession();
+  test(
+    'session assignment persists one exercise and avoids the last one',
+    () async {
+      final firstScheduled = await _session(database, now);
+      final first = await service.startScheduled(firstScheduled.id);
+      now = now.add(const Duration(minutes: 5));
+      await service.complete(first.id);
+      final secondScheduled = await database.openSession();
 
-    service = RecessSessionService(
-      database: database,
-      notifications: notifications,
-      exercises: ExerciseService(
-        catalog: StaticCatalog(_testExercises),
-        random: Random(2),
-      ),
-      clock: () => now,
-    );
+      service = RecessSessionService(
+        database: database,
+        notifications: notifications,
+        exercises: ExerciseService(
+          catalog: StaticCatalog(_testExercises),
+          random: Random(2),
+        ),
+        clock: () => now,
+      );
 
-    final second = await service.start(secondScheduled!.id);
+      final second = await service.startScheduled(secondScheduled!.id);
 
-    expect(first.exerciseId, isNotNull);
-    expect(second.exerciseId, isNotNull);
-    expect(second.exerciseId, isNot(first.exerciseId));
-    expect((await database.session(second.id))!.exerciseId, second.exerciseId);
-  });
+      expect(first.exerciseId, isNotNull);
+      expect(second.exerciseId, isNotNull);
+      expect(second.exerciseId, isNot(first.exerciseId));
+      expect(
+        (await database.session(second.id))!.exerciseId,
+        second.exerciseId,
+      );
+    },
+  );
 
   test('restore and repeated notification taps reuse one session', () async {
     await service.restore();
@@ -383,7 +400,7 @@ void main() {
     expect(notifications.cadence, hasLength(firstCadence.length));
     final firstOpen = await service.openBell('bell:${original!.id}');
     final secondOpen = await service.openBell('bell:${original.id}');
-    final active = await service.start(original.id);
+    final active = await service.startScheduled(original.id);
     final reopenedActive = await service.openBell('bell:${original.id}');
 
     expect(firstOpen?.id, original.id);
@@ -428,11 +445,17 @@ void main() {
 
     expect(restored.value!.scheduledAt, DateTime(2026, 7, 19, 14));
     expect(
-        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 11))));
+      notifications.pendingTimes,
+      isNot(contains(DateTime(2026, 7, 19, 11))),
+    );
     expect(
-        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 12))));
+      notifications.pendingTimes,
+      isNot(contains(DateTime(2026, 7, 19, 12))),
+    );
     expect(
-        notifications.pendingTimes, isNot(contains(DateTime(2026, 7, 19, 13))));
+      notifications.pendingTimes,
+      isNot(contains(DateTime(2026, 7, 19, 13))),
+    );
     expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 14)));
   });
 
@@ -456,45 +479,49 @@ void main() {
     expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 12)));
   });
 
-  test('restore removes all pending Bells when the workday is fully quiet',
-      () async {
-    await service.restore();
-    expect(notifications.pendingTimes, isNotEmpty);
+  test(
+    'restore removes all pending Bells when the workday is fully quiet',
+    () async {
+      await service.restore();
+      expect(notifications.pendingTimes, isNotEmpty);
 
-    await database.savePreferences(
-      const RecessPreferences(
-        quietHoursEnabled: true,
-        quietHoursStartMinutes: 9 * 60,
-        quietHoursEndMinutes: 17 * 60,
-      ),
-    );
-    final result = await service.restore();
+      await database.savePreferences(
+        const RecessPreferences(
+          quietHoursEnabled: true,
+          quietHoursStartMinutes: 9 * 60,
+          quietHoursEndMinutes: 17 * 60,
+        ),
+      );
+      final result = await service.restore();
 
-    expect(result.notificationSucceeded, isTrue);
-    expect(notifications.pendingTimes, isEmpty);
-  });
+      expect(result.notificationSucceeded, isTrue);
+      expect(notifications.pendingTimes, isEmpty);
+    },
+  );
 
-  test('deferred Bell inside Quiet Hours is skipped during reconciliation',
-      () async {
-    await database.savePreferences(
-      const RecessPreferences(
-        quietHoursEnabled: true,
-        quietHoursStartMinutes: 10 * 60,
-        quietHoursEndMinutes: 11 * 60,
-      ),
-    );
-    final scheduled = await _session(database, now);
+  test(
+    'deferred Bell inside Quiet Hours is skipped during reconciliation',
+    () async {
+      await database.savePreferences(
+        const RecessPreferences(
+          quietHoursEnabled: true,
+          quietHoursStartMinutes: 10 * 60,
+          quietHoursEndMinutes: 11 * 60,
+        ),
+      );
+      final scheduled = await _session(database, now);
 
-    final result = await service.defer(
-      scheduled.id,
-      RecessDeferralType.fiveMinutes,
-    );
+      final result = await service.defer(
+        scheduled.id,
+        RecessDeferralType.fiveMinutes,
+      );
 
-    expect(result.notificationSucceeded, isTrue);
-    expect(notifications.deferred, isEmpty);
-    expect(notifications.deferredCancellationCount, 1);
-    expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
-  });
+      expect(result.notificationSucceeded, isTrue);
+      expect(notifications.deferred, isEmpty);
+      expect(notifications.deferredCancellationCount, 1);
+      expect(notifications.pendingTimes, contains(DateTime(2026, 7, 19, 11)));
+    },
+  );
 
   test('saved cadence interval controls rebuilt notification times', () async {
     await database.saveSchedule(
@@ -516,15 +543,12 @@ void main() {
 
     await service.restore();
 
-    expect(
-      notifications.cadence.take(4).map((call) => call.scheduledAt),
-      [
-        DateTime(2026, 7, 19, 10, 30),
-        DateTime(2026, 7, 19, 12),
-        DateTime(2026, 7, 19, 13, 30),
-        DateTime(2026, 7, 19, 15),
-      ],
-    );
+    expect(notifications.cadence.take(4).map((call) => call.scheduledAt), [
+      DateTime(2026, 7, 19, 10, 30),
+      DateTime(2026, 7, 19, 12),
+      DateTime(2026, 7, 19, 13, 30),
+      DateTime(2026, 7, 19, 15),
+    ]);
   });
 
   test('completion without an active session is rejected safely', () async {
@@ -532,8 +556,10 @@ void main() {
 
     await expectLater(service.complete(scheduled.id), throwsStateError);
 
-    expect((await database.session(scheduled.id))!.status,
-        RecessSessionStatus.scheduled);
+    expect(
+      (await database.session(scheduled.id))!.status,
+      RecessSessionStatus.scheduled,
+    );
     expect(await _sessionCount(database), 1);
   });
 
@@ -545,21 +571,24 @@ void main() {
     expect(await service.openBell('unrelated'), isNull);
   });
 
-  test('cadence uses the next local calendar day at the scheduled time',
-      () async {
-    now = DateTime(2026, 3, 8, 17);
+  test(
+    'cadence uses the next local calendar day at the scheduled time',
+    () async {
+      now = DateTime(2026, 3, 8, 17);
 
-    await service.restore();
+      await service.restore();
 
-    final scheduled = await database.openSession();
-    expect(scheduled!.scheduledAt, DateTime(2026, 3, 9, 10));
-  });
+      final scheduled = await database.openSession();
+      expect(scheduled!.scheduledAt, DateTime(2026, 3, 9, 10));
+    },
+  );
 
   test('schema migration preserves legacy local progress rows', () async {
     await database.close();
     final directory = await Directory.systemTemp.createTemp('recess-migration');
-    final file =
-        File('${directory.path}${Platform.pathSeparator}recess.sqlite');
+    final file = File(
+      '${directory.path}${Platform.pathSeparator}recess.sqlite',
+    );
     addTearDown(() => directory.delete(recursive: true));
     final migrated = RecessDatabase(
       NativeDatabase(
@@ -654,14 +683,13 @@ void main() {
     expect(restored.exerciseId, isNotNull);
     expect(restoredAgain!.exerciseId, restored.exerciseId);
     expect(
-        (await migrated.session(restored.id))!.exerciseId, restored.exerciseId);
+      (await migrated.session(restored.id))!.exerciseId,
+      restored.exerciseId,
+    );
   });
 }
 
-Future<RecessSession> _session(
-  RecessDatabase database,
-  DateTime scheduledAt,
-) =>
+Future<RecessSession> _session(RecessDatabase database, DateTime scheduledAt) =>
     database.createSession(scheduledAt: scheduledAt, createdAt: scheduledAt);
 
 Future<int> _sessionCount(RecessDatabase database) async {
@@ -714,8 +742,9 @@ class FakeNotifications implements BellNotifications {
     cadenceCancellationCount++;
     if (limitNextCancellation) {
       limitNextCancellation = false;
-      final obsolete =
-          cadence.indexWhere((call) => !retaining.contains(call.id));
+      final obsolete = cadence.indexWhere(
+        (call) => !retaining.contains(call.id),
+      );
       if (obsolete >= 0) cadence.removeAt(obsolete);
       return;
     }
@@ -724,8 +753,10 @@ class FakeNotifications implements BellNotifications {
 
   @override
   Future<List<PendingCadenceBell>> pendingCadenceBells() async => cadence
-      .map((call) =>
-          PendingCadenceBell(id: call.id, scheduledAt: call.scheduledAt))
+      .map(
+        (call) =>
+            PendingCadenceBell(id: call.id, scheduledAt: call.scheduledAt),
+      )
       .toList(growable: false);
 
   @override

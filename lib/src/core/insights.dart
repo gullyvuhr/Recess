@@ -69,13 +69,8 @@ class InsightObservation {
       other.comparisonPeriod == comparisonPeriod;
 
   @override
-  int get hashCode => Object.hash(
-        type,
-        title,
-        description,
-        supportingValue,
-        comparisonPeriod,
-      );
+  int get hashCode =>
+      Object.hash(type, title, description, supportingValue, comparisonPeriod);
 }
 
 class InsightSummary {
@@ -125,19 +120,24 @@ class InsightEngine {
     final expectedWeeklyIds =
         expectedThisWeek.map((time) => time.millisecondsSinceEpoch).toSet();
     final completedScheduledThisWeek = _completed(weeklySessions)
+        .where((session) => session.isScheduled)
         .map((session) => session.originalScheduledAt.millisecondsSinceEpoch)
         .where(expectedWeeklyIds.contains)
         .toSet()
         .length;
     final exerciseById = {
-      for (final exercise in exercises) exercise.id: exercise
+      for (final exercise in exercises) exercise.id: exercise,
     };
 
     final completedCurrent = _completed(current);
-    final currentResponse =
-        _durations(current, (session) => session.responseDelay);
-    final currentDuration =
-        _durations(completedCurrent, (session) => session.completedDuration);
+    final currentResponse = _durations(
+      current,
+      (session) => session.responseDelay,
+    );
+    final currentDuration = _durations(
+      completedCurrent,
+      (session) => session.completedDuration,
+    );
 
     final candidates = <_ObservationCandidate>[
       ..._weeklyCompletion(
@@ -208,8 +208,10 @@ class InsightEngine {
 
   List<_ObservationCandidate> _lateDeferrals(List<RecessSession> sessions) {
     final deferred = sessions
-        .where((session) =>
-            session.deferralCount > 0 && session.lastDeferredAt != null)
+        .where(
+          (session) =>
+              session.deferralCount > 0 && session.lastDeferredAt != null,
+        )
         .toList(growable: false);
     if (deferred.length < minimumDeferrals) return const [];
     final late =
@@ -234,10 +236,14 @@ class InsightEngine {
     List<RecessSession> current,
     List<RecessSession> previous,
   ) {
-    final currentValues =
-        _durations(current, (session) => session.responseDelay);
-    final previousValues =
-        _durations(previous, (session) => session.responseDelay);
+    final currentValues = _durations(
+      current,
+      (session) => session.responseDelay,
+    );
+    final previousValues = _durations(
+      previous,
+      (session) => session.responseDelay,
+    );
     if (currentValues.length < minimumResponseSamplesPerPeriod ||
         previousValues.length < minimumResponseSamplesPerPeriod) {
       return const [];
@@ -266,9 +272,7 @@ class InsightEngine {
     ];
   }
 
-  List<_ObservationCandidate> _morningCompletion(
-    List<RecessSession> sessions,
-  ) {
+  List<_ObservationCandidate> _morningCompletion(List<RecessSession> sessions) {
     final morning = sessions
         .where((session) => session.originalScheduledAt.hour < 12)
         .toList(growable: false);

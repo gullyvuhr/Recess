@@ -22,8 +22,9 @@ class BellResponseScreen extends ConsumerWidget {
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(minHeight: constraints.maxHeight - 48),
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - 48,
+              ),
               child: IntrinsicHeight(
                 child: session.when(
                   data: (value) => value == null
@@ -58,16 +59,16 @@ class _ActionsState extends ConsumerState<_Actions> {
   RecessSession get session => widget.session;
 
   void _message(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _start() async {
     if (_acting) return;
     setState(() => _acting = true);
     try {
-      await ref.read(recessActionsProvider).start(session.id);
+      await ref.read(recessActionsProvider).startScheduled(session.id);
       unawaited(HapticFeedback.lightImpact().catchError((_) {}));
       if (mounted) context.go('/recess/${session.id}');
     } catch (_) {
@@ -81,10 +82,8 @@ class _ActionsState extends ConsumerState<_Actions> {
     if (_acting) return;
     setState(() => _acting = true);
     try {
-      final result = await ref.read(recessActionsProvider).defer(
-            session.id,
-            type,
-          );
+      final result =
+          await ref.read(recessActionsProvider).defer(session.id, type);
       if (!mounted) return;
       if (!result.notificationSucceeded) {
         _message(
@@ -109,9 +108,7 @@ class _ActionsState extends ConsumerState<_Actions> {
           await ref.read(recessActionsProvider).rainCheck(session.id);
       if (!mounted) return;
       if (!result.notificationSucceeded) {
-        _message(
-          'Rain check saved, but the next Bell could not be scheduled.',
-        );
+        _message('Rain check saved, but the next Bell could not be scheduled.');
       }
       context.go('/home');
     } catch (_) {
@@ -186,9 +183,7 @@ class _Unavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: FilledButton(
-          onPressed: onDone,
-          child: const Text('Back to today'),
-        ),
+        child:
+            FilledButton(onPressed: onDone, child: const Text('Back to today')),
       );
 }

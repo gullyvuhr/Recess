@@ -29,13 +29,19 @@ class RecessDatabase extends GeneratedDatabase {
       rain_checked_at INTEGER,
       exercise_id TEXT,
       cadence_minutes INTEGER NOT NULL DEFAULT 60,
+      origin TEXT NOT NULL CHECK(origin IN ('scheduled', 'manual')),
       created_at INTEGER NOT NULL
     )
   ''';
-  static const _createOneOpenSessionIndex = '''
-    CREATE UNIQUE INDEX IF NOT EXISTS one_open_recess_session
+  static const _createOneOpenScheduledSessionIndex = '''
+    CREATE UNIQUE INDEX IF NOT EXISTS one_open_scheduled_recess_session
     ON recess_sessions((1))
-    WHERE status IN ('scheduled', 'deferred', 'active')
+    WHERE origin = 'scheduled' AND status IN ('scheduled', 'deferred', 'active')
+  ''';
+  static const _createOneOpenManualSessionIndex = '''
+    CREATE UNIQUE INDEX IF NOT EXISTS one_open_manual_recess_session
+    ON recess_sessions((1))
+    WHERE origin = 'manual' AND status = 'active'
   ''';
   static const _createHistoryDateIndex = '''
     CREATE INDEX IF NOT EXISTS recess_sessions_original_scheduled_at
@@ -47,7 +53,7 @@ class RecessDatabase extends GeneratedDatabase {
   ''';
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
@@ -57,6 +63,7 @@ class RecessDatabase extends GeneratedDatabase {
         onCreate: (_) => _ensureSchema(),
         onUpgrade: (_, from, to) async {
           await customStatement(_createSettings);
+          await customStatement(_createSessions);
           if (from < 2) {
             await customStatement(_createSessions);
             await customStatement('''
@@ -72,6 +79,7 @@ class RecessDatabase extends GeneratedDatabase {
                 last_deferred_at,
                 rain_checked_at,
                 cadence_minutes,
+                origin,
                 created_at
               )
               SELECT
@@ -93,6 +101,7 @@ class RecessDatabase extends GeneratedDatabase {
                   (SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'cadence_minutes'),
                   60
                 ),
+                'scheduled',
                 created_at
               FROM recess_entries
               WHERE status IN ('started', 'completed', 'rainCheck')
@@ -142,6 +151,60 @@ class RecessDatabase extends GeneratedDatabase {
                 )
             ''');
           }
+          if (from >= 2 && from < 5) {
+            final columns = await customSelect(
+              'PRAGMA table_info(recess_sessions)',
+            ).get();
+            final hasOrigin = columns.any(
+              (column) => column.read<String>('name') == 'origin',
+            );
+            if (!hasOrigin) {
+              await customStatement(
+                'ALTER TABLE recess_sessions RENAME TO recess_sessions_v4',
+              );
+              await customStatement(_createSessions);
+              await customStatement('''
+                INSERT INTO recess_sessions(
+                  id,
+                  original_scheduled_at,
+                  scheduled_at,
+                  acknowledged_at,
+                  started_at,
+                  completed_at,
+                  status,
+                  deferral_type,
+                  deferral_count,
+                  last_deferred_at,
+                  rain_checked_at,
+                  exercise_id,
+                  cadence_minutes,
+                  origin,
+                  created_at
+                )
+                SELECT
+                  id,
+                  original_scheduled_at,
+                  scheduled_at,
+                  acknowledged_at,
+                  started_at,
+                  completed_at,
+                  status,
+                  deferral_type,
+                  deferral_count,
+                  last_deferred_at,
+                  rain_checked_at,
+                  exercise_id,
+                  cadence_minutes,
+                  CASE
+                    WHEN original_scheduled_at = created_at THEN 'manual'
+                    ELSE 'scheduled'
+                  END,
+                  created_at
+                FROM recess_sessions_v4
+              ''');
+              await customStatement('DROP TABLE recess_sessions_v4');
+            }
+          }
         },
         beforeOpen: (_) => _ensureSchema(),
       );
@@ -153,7 +216,9 @@ class RecessDatabase extends GeneratedDatabase {
     );
     await customStatement(_createLegacyEntries);
     await customStatement(_createSessions);
-    await customStatement(_createOneOpenSessionIndex);
+    await customStatement('DROP INDEX IF EXISTS one_open_recess_session');
+    await customStatement(_createOneOpenScheduledSessionIndex);
+    await customStatement(_createOneOpenManualSessionIndex);
     await customStatement(_createHistoryDateIndex);
     await customStatement(_createHistoryStatusIndex);
   }
@@ -188,7 +253,9 @@ class RecessDatabase extends GeneratedDatabase {
       await setSetting('work_end', '${schedule.endMinutes}');
       await setSetting('cadence_minutes', '${schedule.cadenceMinutes}');
       await setSetting(
-          'work_days', (schedule.workDays.toList()..sort()).join(','));
+        'work_days',
+        (schedule.workDays.toList()..sort()).join(','),
+      );
       await setSetting('onboarding_complete', 'true');
     });
   }
@@ -236,11 +303,7 @@ class RecessDatabase extends GeneratedDatabase {
         difficulty,
         ExerciseDifficulty.standard,
       ),
-      bellSound: _enumByName(
-        BellSound.values,
-        sound,
-        BellSound.schoolBell,
-      ),
+      bellSound: _enumByName(BellSound.values, sound, BellSound.schoolBell),
       quietHoursEnabled: quietEnabled == 'true',
       quietHoursStartMinutes: quietStart != null &&
               quietStart >= 0 &&
@@ -256,8 +319,9 @@ class RecessDatabase extends GeneratedDatabase {
   }
 
   Future<void> savePreferences(RecessPreferences preferences) async {
-    if (!RecessPreferences.supportedDurations
-        .contains(preferences.durationMinutes)) {
+    if (!RecessPreferences.supportedDurations.contains(
+      preferences.durationMinutes,
+    )) {
       throw ArgumentError.value(
         preferences.durationMinutes,
         'durationMinutes',
@@ -290,11 +354,7 @@ class RecessDatabase extends GeneratedDatabase {
     });
   }
 
-  T _enumByName<T extends Enum>(
-    List<T> values,
-    String? name,
-    T fallback,
-  ) {
+  T _enumByName<T extends Enum>(List<T> values, String? name, T fallback) {
     for (final value in values) {
       if (value.name == name) return value;
     }
@@ -307,12 +367,13 @@ class RecessDatabase extends GeneratedDatabase {
     int cadenceMinutes = 60,
   }) async {
     final id = await customInsert(
-      'INSERT INTO recess_sessions(original_scheduled_at, scheduled_at, status, cadence_minutes, created_at) VALUES(?, ?, ?, ?, ?)',
+      'INSERT INTO recess_sessions(original_scheduled_at, scheduled_at, status, cadence_minutes, origin, created_at) VALUES(?, ?, ?, ?, ?, ?)',
       variables: [
         Variable.withInt(scheduledAt.millisecondsSinceEpoch),
         Variable.withInt(scheduledAt.millisecondsSinceEpoch),
         Variable.withString(RecessSessionStatus.scheduled.name),
         Variable.withInt(cadenceMinutes),
+        Variable.withString(RecessSessionOrigin.scheduled.name),
         Variable.withInt(createdAt.millisecondsSinceEpoch),
       ],
     );
@@ -325,7 +386,7 @@ class RecessDatabase extends GeneratedDatabase {
     int cadenceMinutes = 60,
   }) =>
       transaction(() async {
-        final open = await openSession();
+        final open = await openScheduledSession();
         if (open != null) return open;
         return createSession(
           scheduledAt: scheduledAt,
@@ -349,13 +410,68 @@ class RecessDatabase extends GeneratedDatabase {
     return rows.isEmpty ? null : _sessionFromRow(rows.single);
   }
 
+  Future<RecessSession?> openScheduledSession() async {
+    final rows = await customSelect(
+      "SELECT * FROM recess_sessions WHERE origin = 'scheduled' AND status IN ('scheduled', 'deferred', 'active') ORDER BY id DESC LIMIT 1",
+    ).get();
+    return rows.isEmpty ? null : _sessionFromRow(rows.single);
+  }
+
+  Future<RecessSession?> activeManualSession() async {
+    final rows = await customSelect(
+      "SELECT * FROM recess_sessions WHERE origin = 'manual' AND status = 'active' ORDER BY id DESC LIMIT 1",
+    ).get();
+    return rows.isEmpty ? null : _sessionFromRow(rows.single);
+  }
+
+  Future<RecessSession> openOrCreateManualSession(
+    DateTime startedAt,
+    String exerciseId, {
+    int cadenceMinutes = 60,
+  }) =>
+      transaction(() async {
+        final active = await activeManualSession();
+        if (active != null) return active;
+        return _createManualSession(
+          startedAt,
+          exerciseId,
+          cadenceMinutes: cadenceMinutes,
+        );
+      });
+
+  Future<RecessSession> _createManualSession(
+    DateTime startedAt,
+    String exerciseId, {
+    required int cadenceMinutes,
+  }) async {
+    final id = await customInsert(
+      '''
+        INSERT INTO recess_sessions(
+          original_scheduled_at, scheduled_at, started_at, status,
+          exercise_id, cadence_minutes, origin, created_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+      ''',
+      variables: [
+        Variable.withInt(startedAt.millisecondsSinceEpoch),
+        Variable.withInt(startedAt.millisecondsSinceEpoch),
+        Variable.withInt(startedAt.millisecondsSinceEpoch),
+        Variable.withString(RecessSessionStatus.active.name),
+        Variable.withString(exerciseId),
+        Variable.withInt(cadenceMinutes),
+        Variable.withString(RecessSessionOrigin.manual.name),
+        Variable.withInt(startedAt.millisecondsSinceEpoch),
+      ],
+    );
+    return (await session(id))!;
+  }
+
   Future<RecessSession> startSession(
     int id,
     DateTime startedAt,
     String exerciseId,
   ) async {
     final changed = await customUpdate(
-      "UPDATE recess_sessions SET status = ?, started_at = ?, exercise_id = ? WHERE id = ? AND status IN ('scheduled', 'deferred') AND exercise_id IS NULL",
+      "UPDATE recess_sessions SET status = ?, started_at = ?, exercise_id = ? WHERE id = ? AND origin = 'scheduled' AND status IN ('scheduled', 'deferred') AND exercise_id IS NULL",
       variables: [
         Variable.withString(RecessSessionStatus.active.name),
         Variable.withInt(startedAt.millisecondsSinceEpoch),
@@ -391,10 +507,7 @@ class RecessDatabase extends GeneratedDatabase {
     return rows.isEmpty ? null : rows.single.read<String>('exercise_id');
   }
 
-  Future<RecessSession?> markBellOpened(
-    int id,
-    DateTime openedAt,
-  ) async {
+  Future<RecessSession?> markBellOpened(int id, DateTime openedAt) async {
     final changed = await customUpdate(
       "UPDATE recess_sessions SET acknowledged_at = COALESCE(acknowledged_at, ?) WHERE id = ? AND status IN ('scheduled', 'deferred')",
       variables: [
@@ -475,10 +588,16 @@ class RecessDatabase extends GeneratedDatabase {
 
   Future<TodayProgress> todayProgress({DateTime? now}) async {
     final current = now ?? DateTime.now();
-    final start = DateTime(current.year, current.month, current.day)
-        .millisecondsSinceEpoch;
-    final end = DateTime(current.year, current.month, current.day + 1)
-        .millisecondsSinceEpoch;
+    final start = DateTime(
+      current.year,
+      current.month,
+      current.day,
+    ).millisecondsSinceEpoch;
+    final end = DateTime(
+      current.year,
+      current.month,
+      current.day + 1,
+    ).millisecondsSinceEpoch;
     final row = await customSelect(
       '''
         SELECT
@@ -549,15 +668,11 @@ class RecessDatabase extends GeneratedDatabase {
     return rows.map(_sessionFromRow).toList();
   }
 
-  Future<List<RecessSession>> deferredSessions() => _sessionsWhere(
-        'deferral_count > 0',
-        'last_deferred_at DESC, id DESC',
-      );
+  Future<List<RecessSession>> deferredSessions() =>
+      _sessionsWhere('deferral_count > 0', 'last_deferred_at DESC, id DESC');
 
-  Future<List<RecessSession>> rainCheckedSessions() => _sessionsWhere(
-        "status = 'rainChecked'",
-        'rain_checked_at DESC, id DESC',
-      );
+  Future<List<RecessSession>> rainCheckedSessions() =>
+      _sessionsWhere("status = 'rainChecked'", 'rain_checked_at DESC, id DESC');
 
   Future<RecessSession?> mostRecentCompletedSession() async {
     final sessions = await _sessionsWhere(
@@ -572,9 +687,7 @@ class RecessDatabase extends GeneratedDatabase {
     final rows = await customSelect(
       'SELECT status, COUNT(*) AS total FROM recess_sessions GROUP BY status',
     ).get();
-    final counts = {
-      for (final status in RecessSessionStatus.values) status: 0,
-    };
+    final counts = {for (final status in RecessSessionStatus.values) status: 0};
     for (final row in rows) {
       counts[RecessSessionStatus.values.byName(row.read<String>('status'))] =
           row.read<int>('total');
@@ -603,10 +716,7 @@ class RecessDatabase extends GeneratedDatabase {
     return rows.map(_sessionFromRow).toList();
   }
 
-  Future<Duration?> _averageDuration(
-    String expression,
-    String where,
-  ) async {
+  Future<Duration?> _averageDuration(String expression, String where) async {
     final row = await customSelect(
       'SELECT AVG($expression) AS average_ms FROM recess_sessions WHERE $where',
     ).getSingle();
@@ -635,8 +745,10 @@ class RecessDatabase extends GeneratedDatabase {
       rainCheckedAt: _date(row.readNullable<int>('rain_checked_at')),
       exerciseId: row.readNullable<String>('exercise_id'),
       cadenceMinutes: row.read<int>('cadence_minutes'),
-      createdAt:
-          DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at')),
+      origin: RecessSessionOrigin.values.byName(row.read<String>('origin')),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('created_at'),
+      ),
     );
   }
 

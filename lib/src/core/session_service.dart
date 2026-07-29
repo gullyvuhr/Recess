@@ -41,16 +41,26 @@ class RecessSessionService {
     return restore();
   }
 
-  Future<SessionActionResult<RecessSession?>> restore() async {
-    final open = await _database.openSession();
+  Future<SessionActionResult<RecessSession?>> restore() =>
+      _restore(resumeManual: true);
+
+  Future<SessionActionResult<RecessSession?>> _restore({
+    required bool resumeManual,
+  }) async {
+    final manual = resumeManual ? await _database.activeManualSession() : null;
+    final open = await _database.openScheduledSession();
+    if (manual != null) {
+      final cadence = await _restore(resumeManual: false);
+      return SessionActionResult(
+        value: await _ensureExerciseAssigned(manual),
+        notificationSucceeded: cadence.notificationSucceeded,
+      );
+    }
     if (open == null) {
       return _scheduleNextCadence(cancelObsolete: true);
     }
     if (open.status == RecessSessionStatus.scheduled) {
-      final times = await _cadenceTimes(
-        _clock(),
-        await _database.schedule(),
-      );
+      final times = await _cadenceTimes(_clock(), await _database.schedule());
       if (times.isNotEmpty) {
         final rescheduled = await _database.rescheduleCadenceSession(
           open.id,
@@ -71,10 +81,7 @@ class RecessSessionService {
         times,
         cancelObsolete: true,
       );
-      return SessionActionResult(
-        value: open,
-        notificationSucceeded: scheduled,
-      );
+      return SessionActionResult(value: open, notificationSucceeded: scheduled);
     } else if (open.status == RecessSessionStatus.deferred) {
       final reminderScheduled = await _scheduleDeferredBell(
         open.id,
@@ -113,7 +120,7 @@ class RecessSessionService {
   }
 
   Future<bool> refreshBellSound() async {
-    final open = await _database.openSession();
+    final open = await _database.openScheduledSession();
     if (open == null) return true;
     final sound = await _bellSound();
     final cadenceScheduled = await _rebuildCadence(
@@ -133,7 +140,7 @@ class RecessSessionService {
   }
 
   Future<SessionActionResult<RecessSession>> ringBellNow() async {
-    final open = await _database.openSession();
+    final open = await _database.openScheduledSession();
     final cadence = open == null ? await _scheduleNextCadence() : null;
     final session = open ?? cadence?.value;
     if (session == null) {
@@ -161,25 +168,22 @@ class RecessSessionService {
     return _database.markBellOpened(id, _clock());
   }
 
-  Future<RecessSession> start(int sessionId) async {
+  Future<RecessSession> startScheduled(int sessionId) async {
     await _notifications.cancelDeferredBell();
     final exercise = await _selectExercise();
     return _database.startSession(sessionId, _clock(), exercise.id);
   }
 
   Future<RecessSession> startNow() async {
-    final open = await _database.openSession();
-    if (open?.status == RecessSessionStatus.active) {
-      return _ensureExerciseAssigned(open!);
-    }
-    if (open != null) return start(open.id);
+    final active = await _database.activeManualSession();
+    if (active != null) return _ensureExerciseAssigned(active);
     final now = _clock();
-    final session = await _database.openOrCreateScheduledSession(
-      scheduledAt: now,
-      createdAt: now,
+    final exercise = await _selectExercise();
+    return _database.openOrCreateManualSession(
+      now,
+      exercise.id,
       cadenceMinutes: (await _database.schedule())?.cadenceMinutes ?? 60,
     );
-    return start(session.id);
   }
 
   Future<SessionActionResult<RecessSession>> defer(

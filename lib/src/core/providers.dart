@@ -14,10 +14,12 @@ import 'session_service.dart';
 export 'database.dart';
 export 'notifications.dart';
 
-final databaseProvider =
-    Provider<RecessDatabase>((_) => throw UnimplementedError());
-final notificationServiceProvider =
-    Provider<BellNotifications>((_) => throw UnimplementedError());
+final databaseProvider = Provider<RecessDatabase>(
+  (_) => throw UnimplementedError(),
+);
+final notificationServiceProvider = Provider<BellNotifications>(
+  (_) => throw UnimplementedError(),
+);
 final bellPreviewPlayerProvider = Provider<BellPreviewPlayer>(
   (_) => const PlatformBellPreviewPlayer(),
 );
@@ -162,8 +164,8 @@ class RecessActions {
     return result;
   }
 
-  Future<RecessSession> start(int sessionId) async {
-    final session = await _service.start(sessionId);
+  Future<RecessSession> startScheduled(int sessionId) async {
+    final session = await _service.startScheduled(sessionId);
     ref.invalidate(sessionProvider(sessionId));
     ref.invalidate(openSessionProvider);
     ref.invalidate(todayProgressProvider);

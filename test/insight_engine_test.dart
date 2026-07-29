@@ -32,6 +32,7 @@ void main() {
       _session(
         1,
         DateTime(2026, 7, 20, 9),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 20, 9, 5),
         completedAt: DateTime(2026, 7, 20, 9, 15),
@@ -40,6 +41,7 @@ void main() {
       _session(
         2,
         DateTime(2026, 7, 20, 14),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.rainChecked,
         deferralCount: 1,
         lastDeferredAt: DateTime(2026, 7, 20, 14, 2),
@@ -47,6 +49,7 @@ void main() {
       _session(
         3,
         DateTime(2026, 7, 20, 16),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 20, 16, 5),
         completedAt: DateTime(2026, 7, 20, 16, 25),
@@ -78,24 +81,27 @@ void main() {
     expect(summary.observations, isEmpty);
   });
 
-  test('starts before a scheduled Bell do not create negative response time',
-      () {
-    final summary = engine.summarize(
-      sessions: [
-        _session(
-          1,
-          DateTime(2026, 7, 20, 13),
-          status: RecessSessionStatus.completed,
-          startedAt: DateTime(2026, 7, 20, 12, 40),
-          completedAt: DateTime(2026, 7, 20, 12, 45),
-        ),
-      ],
-      exercises: _exercises,
-      now: now,
-    );
+  test(
+    'starts before a scheduled Bell do not create negative response time',
+    () {
+      final summary = engine.summarize(
+        sessions: [
+          _session(
+            1,
+            DateTime(2026, 7, 20, 13),
+            origin: RecessSessionOrigin.scheduled,
+            status: RecessSessionStatus.completed,
+            startedAt: DateTime(2026, 7, 20, 12, 40),
+            completedAt: DateTime(2026, 7, 20, 12, 45),
+          ),
+        ],
+        exercises: _exercises,
+        now: now,
+      );
 
-    expect(summary.sevenDays.averageResponseTime, isNull);
-  });
+      expect(summary.sevenDays.averageResponseTime, isNull);
+    },
+  );
 
   test('seven complete days produce stable rolling aggregate metrics', () {
     final sessions = [
@@ -103,6 +109,7 @@ void main() {
         _session(
           day,
           DateTime(2026, 7, day, 10),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.completed,
           startedAt: DateTime(2026, 7, day, 10, 4),
           completedAt: DateTime(2026, 7, day, 10, 12),
@@ -128,71 +135,77 @@ void main() {
   });
 
   test(
-      'weekly completion uses all active schedule occurrences and excludes manual sessions',
-      () {
-    final expected = scheduledBellTimesInRange(
-      schedule: const WorkSchedule(
-        startMinutes: 9 * 60,
-        endMinutes: 12 * 60,
-        cadenceMinutes: 60,
-      ),
-      preferences: const RecessPreferences(),
-      start: DateTime(2026, 7, 20),
-      end: DateTime(2026, 7, 27),
-    );
-    final sessions = [
-      _session(
-        1,
-        DateTime(2026, 7, 20, 10),
-        status: RecessSessionStatus.completed,
-        startedAt: DateTime(2026, 7, 20, 10, 2),
-        completedAt: DateTime(2026, 7, 20, 10, 7),
-      ),
-      _session(
-        2,
-        DateTime(2026, 7, 20, 11),
-        status: RecessSessionStatus.rainChecked,
-      ),
-      _session(
-        3,
-        DateTime(2026, 7, 21, 10),
-        status: RecessSessionStatus.completed,
-        startedAt: DateTime(2026, 7, 21, 10, 1),
-        completedAt: DateTime(2026, 7, 21, 10, 6),
-      ),
-      _session(
-        4,
-        DateTime(2026, 7, 22, 10),
-        status: RecessSessionStatus.completed,
-        startedAt: DateTime(2026, 7, 22, 10, 1),
-        completedAt: DateTime(2026, 7, 22, 10, 6),
-      ),
-      _session(
-        5,
-        DateTime(2026, 7, 22, 10, 30),
-        status: RecessSessionStatus.completed,
-        startedAt: DateTime(2026, 7, 22, 10, 30),
-        completedAt: DateTime(2026, 7, 22, 10, 35),
-      ),
-    ];
+    'weekly completion uses all active schedule occurrences and excludes manual sessions',
+    () {
+      final expected = scheduledBellTimesInRange(
+        schedule: const WorkSchedule(
+          startMinutes: 9 * 60,
+          endMinutes: 12 * 60,
+          cadenceMinutes: 60,
+        ),
+        preferences: const RecessPreferences(),
+        start: DateTime(2026, 7, 20),
+        end: DateTime(2026, 7, 27),
+      );
+      final sessions = [
+        _session(
+          1,
+          DateTime(2026, 7, 20, 10),
+          origin: RecessSessionOrigin.scheduled,
+          status: RecessSessionStatus.completed,
+          startedAt: DateTime(2026, 7, 20, 10, 2),
+          completedAt: DateTime(2026, 7, 20, 10, 7),
+        ),
+        _session(
+          2,
+          DateTime(2026, 7, 20, 11),
+          origin: RecessSessionOrigin.scheduled,
+          status: RecessSessionStatus.rainChecked,
+        ),
+        _session(
+          3,
+          DateTime(2026, 7, 21, 10),
+          origin: RecessSessionOrigin.scheduled,
+          status: RecessSessionStatus.completed,
+          startedAt: DateTime(2026, 7, 21, 10, 1),
+          completedAt: DateTime(2026, 7, 21, 10, 6),
+        ),
+        _session(
+          4,
+          DateTime(2026, 7, 22, 10),
+          origin: RecessSessionOrigin.scheduled,
+          status: RecessSessionStatus.completed,
+          startedAt: DateTime(2026, 7, 22, 10, 1),
+          completedAt: DateTime(2026, 7, 22, 10, 6),
+        ),
+        _session(
+          5,
+          DateTime(2026, 7, 22, 10, 30),
+          origin: RecessSessionOrigin.manual,
+          status: RecessSessionStatus.completed,
+          startedAt: DateTime(2026, 7, 22, 10, 30),
+          completedAt: DateTime(2026, 7, 22, 10, 35),
+        ),
+      ];
 
-    final summary = engine.summarize(
-      sessions: sessions,
-      exercises: _exercises,
-      expectedWeeklyOccurrences: expected,
-      now: DateTime(2026, 7, 22, 12),
-    );
+      final summary = engine.summarize(
+        sessions: sessions,
+        exercises: _exercises,
+        expectedWeeklyOccurrences: expected,
+        now: DateTime(2026, 7, 22, 12),
+      );
 
-    expect(expected, hasLength(10));
-    expect(
-      summary.observations
-          .singleWhere(
-            (value) => value.type == InsightObservationType.weeklyCompletion,
-          )
-          .description,
-      'You completed 3 of 10 scheduled Recesses this week.',
-    );
-  });
+      expect(expected, hasLength(10));
+      expect(
+        summary.observations
+            .singleWhere(
+              (value) => value.type == InsightObservationType.weeklyCompletion,
+            )
+            .description,
+        'You completed 3 of 10 scheduled Recesses this week.',
+      );
+    },
+  );
 
   test('manual completion does not increase scheduled adherence', () {
     final expected = scheduledBellTimesInRange(
@@ -208,6 +221,7 @@ void main() {
     final manual = _session(
       1,
       DateTime(2026, 7, 20, 10, 30),
+      origin: RecessSessionOrigin.manual,
       status: RecessSessionStatus.completed,
       startedAt: DateTime(2026, 7, 20, 10, 30),
       completedAt: DateTime(2026, 7, 20, 10, 35),
@@ -269,6 +283,7 @@ void main() {
       _session(
         1,
         DateTime(2026, 7, 20, 9),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 20, 9, 3),
         completedAt: DateTime(2026, 7, 20, 9, 8),
@@ -276,6 +291,7 @@ void main() {
       _session(
         2,
         DateTime(2026, 7, 20, 11),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.rainChecked,
         deferralCount: 2,
         lastDeferredAt: DateTime(2026, 7, 20, 11, 20),
@@ -283,6 +299,7 @@ void main() {
       _session(
         3,
         DateTime(2026, 7, 20, 15),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.scheduled,
       ),
     ];
@@ -306,6 +323,7 @@ void main() {
         _session(
           hour,
           DateTime(2026, 7, 20, hour),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.completed,
           startedAt: DateTime(2026, 7, 20, hour, 5),
           completedAt: DateTime(2026, 7, 20, hour, 10),
@@ -327,6 +345,7 @@ void main() {
         _session(
           day,
           DateTime(2026, 7, day, 9),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.completed,
           startedAt: DateTime(2026, 7, day, 9, 2),
           completedAt: DateTime(2026, 7, day, 9, 8),
@@ -335,6 +354,7 @@ void main() {
         _session(
           100 + day,
           DateTime(2026, 7, day, 15),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.rainChecked,
           deferralCount: 1,
           lastDeferredAt: DateTime(2026, 7, day, 15, 1),
@@ -345,6 +365,7 @@ void main() {
         _session(
           200 + day,
           DateTime(2026, 7, day, 9),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.completed,
           startedAt: DateTime(2026, 7, day, 9, 10),
           completedAt: DateTime(2026, 7, day, 9, 16),
@@ -358,14 +379,11 @@ void main() {
     );
 
     expect(summary.observations, hasLength(3));
-    expect(
-      summary.observations.map((value) => value.type),
-      [
-        InsightObservationType.morningCompletion,
-        InsightObservationType.responseTimeImproving,
-        InsightObservationType.lateDeferrals,
-      ],
-    );
+    expect(summary.observations.map((value) => value.type), [
+      InsightObservationType.morningCompletion,
+      InsightObservationType.responseTimeImproving,
+      InsightObservationType.lateDeferrals,
+    ]);
   });
 
   test('identical facts always produce identical output', () {
@@ -374,6 +392,7 @@ void main() {
         _session(
           day,
           DateTime(2026, 7, day, 15),
+          origin: RecessSessionOrigin.scheduled,
           status: RecessSessionStatus.rainChecked,
           deferralCount: 1,
           lastDeferredAt: DateTime(2026, 7, day, 15, 5),
@@ -401,6 +420,7 @@ void main() {
       _session(
         1,
         DateTime(2026, 7, 20),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 20, 0, 1),
         completedAt: DateTime(2026, 7, 20, 0, 6),
@@ -408,6 +428,7 @@ void main() {
       _session(
         2,
         DateTime(2026, 7, 19, 23, 59),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 20, 0, 2),
         completedAt: DateTime(2026, 7, 20, 0, 7),
@@ -415,6 +436,7 @@ void main() {
       _session(
         3,
         DateTime(2026, 7, 21),
+        origin: RecessSessionOrigin.scheduled,
         status: RecessSessionStatus.completed,
         startedAt: DateTime(2026, 7, 21, 0, 1),
         completedAt: DateTime(2026, 7, 21, 0, 6),
@@ -436,6 +458,7 @@ RecessSession _session(
   int id,
   DateTime scheduledAt, {
   required RecessSessionStatus status,
+  required RecessSessionOrigin origin,
   DateTime? startedAt,
   DateTime? completedAt,
   int deferralCount = 0,
@@ -450,6 +473,7 @@ RecessSession _session(
       createdAt: scheduledAt.subtract(const Duration(minutes: 5)),
       deferralCount: deferralCount,
       cadenceMinutes: 60,
+      origin: origin,
       startedAt: startedAt,
       completedAt: completedAt,
       lastDeferredAt: lastDeferredAt,
