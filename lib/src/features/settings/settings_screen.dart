@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/models.dart';
 import '../../core/providers.dart';
@@ -11,9 +12,6 @@ import '../../core/bell_audio.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
-
-  static const appVersion = '1.7.0-beta.3';
-  static const buildNumber = '5';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -152,10 +150,7 @@ class SettingsScreen extends ConsumerWidget {
             const _SectionLabel('About'),
             const _AboutRecess(),
             const SizedBox(height: 8),
-            Text(
-              'Beta · Version $appVersion ($buildNumber) · Offline First',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            const _VersionDisplay(),
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -241,6 +236,25 @@ class SettingsScreen extends ConsumerWidget {
       );
     }
   }
+}
+
+class _VersionDisplay extends StatelessWidget {
+  const _VersionDisplay();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<PackageInfo>(
+        future: PackageInfo.fromPlatform(),
+        builder: (context, snapshot) {
+          final packageInfo = snapshot.data;
+          final version = packageInfo == null
+              ? 'Version unavailable'
+              : 'Version ${packageInfo.version} (${packageInfo.buildNumber})';
+          return Text(
+            '$version · Offline First',
+            style: Theme.of(context).textTheme.bodySmall,
+          );
+        },
+      );
 }
 
 class _SectionLabel extends StatelessWidget {

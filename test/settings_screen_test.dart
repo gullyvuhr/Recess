@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:recess/src/core/models.dart';
 import 'package:recess/src/core/providers.dart';
 import 'package:recess/src/core/bell_audio.dart';
@@ -26,7 +27,19 @@ void main() {
     await database.close();
   });
 
-  Future<void> pumpSettings(WidgetTester tester) async {
+  Future<void> pumpSettings(
+    WidgetTester tester, {
+    bool mockPackageInfo = true,
+  }) async {
+    if (mockPackageInfo) {
+      PackageInfo.setMockInitialValues(
+        appName: 'Recess',
+        packageName: 'com.recessapp.recess',
+        version: '9.8.7',
+        buildNumber: '654',
+        buildSignature: '',
+      );
+    }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -39,6 +52,33 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('keeps Settings available when package metadata fails',
+      (tester) async {
+    const packageInfoChannel = MethodChannel(
+      'dev.fluttercommunity.plus/package_info',
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      packageInfoChannel,
+      (_) => throw PlatformException(code: 'metadata-unavailable'),
+    );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(packageInfoChannel, null),
+    );
+
+    await pumpSettings(tester, mockPackageInfo: false);
+    await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(
+      find.text('Version unavailable · Offline First'),
+      findsOneWidget,
+    );
+  });
 
   Future<void> select<T>(
     WidgetTester tester,
@@ -69,9 +109,10 @@ void main() {
     expect(find.text('School Bell'), findsOneWidget);
     expect(find.text('Notifications on'), findsOneWidget);
     await tester.scrollUntilVisible(find.textContaining('Offline First'), 300);
+    await tester.pumpAndSettle();
     expect(
       find.text(
-        'Beta · Version 1.7.0-beta.3 (5) · Offline First',
+        'Version 9.8.7 (654) · Offline First',
       ),
       findsOneWidget,
     );

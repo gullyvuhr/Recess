@@ -34,7 +34,7 @@ Recess is an offline-first Flutter app that helps people take an intentional bre
 - Sprint 5.1 Product Polish with clearer copy, large-text-safe Settings,
   improved semantics, standard Workday navigation, and restrained native
   haptics
-- Beta candidate `1.7.0-beta.3+5`, with refined native
+- Production release `1.7.0+5`, with refined native
   identity, cream launch surfaces, local release-signing configuration, upgrade
   preservation coverage, resume-time Bell reconciliation, and an explicit
   release-readiness checklist
@@ -50,7 +50,7 @@ Accounts, cloud services, analytics, AI, and sync are intentionally excluded.
 
 ## Documentation
 
-The canonical documentation set is indexed in [Recess_Master_Documentation_Index_v1.7.0-beta.3.docx](docs/Recess_Master_Documentation_Index_v1.7.0-beta.3.docx). Version 1.7.0-beta.3 is the current Beta candidate. Version 1.6.1 remains the stable baseline; the prior release candidate and beta releases remain preserved as historical records. Detailed implementation records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), [beta.2 production polish](docs/Recess_Beta2_ProductionPolish.md), and the [beta.3 weekly Insight correction](docs/Recess_Beta3_WeeklyInsightFix.md).
+The production release is version 1.7.0. Prior release-candidate and beta documentation remains preserved as historical implementation records. Detailed records are available for [Sprint 4](docs/Recess_Sprint4_ExerciseEngine.md), [Sprint 5.1](docs/Recess_Sprint5.1_ProductPolish.md), [Sprint 5.2](docs/Recess_Sprint5.2_BetaRelease.md), [production polish](docs/Recess_Beta2_ProductionPolish.md), and the [weekly Insight correction](docs/Recess_Beta3_WeeklyInsightFix.md).
 
 ## Why is the source public?
 
@@ -70,9 +70,9 @@ permission. Platform projects can be generated with
 `flutter create . --platforms=android,ios` if they are not present in a checkout.
 
 Installation, signing, upgrade, asset, and release-validation instructions are
-recorded in [the Sprint 5.2 release checklist](docs/Recess_Beta_Release_Checklist_v1.7.0-beta.1.md).
+recorded in [the historical Sprint 5.2 release checklist](docs/Recess_Beta_Release_Checklist_v1.7.0-beta.1.md).
 Visual and audio provenance is tracked in the
-[current release asset manifest](docs/Recess_Release_Asset_Manifest_v1.7.0-beta.3.md).
-Changes in this candidate are summarized in the
+[release asset manifest](docs/Recess_Release_Asset_Manifest_v1.7.0-beta.3.md).
+Changes incorporated into version 1.7.0 are summarized in the historical
 [v1.7.0-beta.3 release notes](docs/Recess_Release_Notes_v1.7.0-beta.3.md) and
 [CHANGELOG.md](CHANGELOG.md).

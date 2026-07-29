@@ -2,6 +2,14 @@
 
 All notable Recess changes are recorded here.
 
+## 1.7.0 - 2026-07-29
+
+### Changed
+
+- Promoted the release identity from beta to production.
+- The in-app version display now reads installed package metadata.
+- Android Gradle wrapper downloads are reproducible across development hosts.
+
 ## 1.7.0-beta.3 - 2026-07-24
 
 ### Fixed
