@@ -118,6 +118,101 @@ void main() {
       );
     });
 
+    test('completed manual recess increments the weekly completed count',
+        () async {
+      final manual = await database.createSession(
+        scheduledAt: DateTime(2026, 7, 13, 23, 59),
+        createdAt: DateTime(2026, 7, 20, 10),
+      );
+      await database.startSession(
+        manual.id,
+        DateTime(2026, 7, 20, 10),
+        'shoulder-rolls',
+      );
+      await database.completeSession(
+        manual.id,
+        DateTime(2026, 7, 20, 10, 5),
+      );
+
+      final data = await service.load(
+        HistoryPeriod.current(DateTime(2026, 7, 20)),
+      );
+
+      expect(data.summary.completed, 1);
+      expect(data.days.single.date, DateTime(2026, 7, 20));
+    });
+
+    test('abandoned manual recess does not increment the weekly count',
+        () async {
+      final manual = await database.createSession(
+        scheduledAt: DateTime(2026, 7, 20, 10),
+        createdAt: DateTime(2026, 7, 20, 10),
+      );
+      await database.startSession(
+        manual.id,
+        DateTime(2026, 7, 20, 10),
+        'shoulder-rolls',
+      );
+
+      final data = await service.load(
+        HistoryPeriod.current(DateTime(2026, 7, 20)),
+      );
+
+      expect(data.summary.completed, 0);
+    });
+
+    test('manual then scheduled completion increments the weekly count twice',
+        () async {
+      await _complete(
+        database,
+        scheduled: DateTime(2026, 7, 13, 23, 59),
+        started: DateTime(2026, 7, 20, 10),
+        completed: DateTime(2026, 7, 20, 10, 5),
+      );
+      await _complete(
+        database,
+        scheduled: DateTime(2026, 7, 20, 11),
+        started: DateTime(2026, 7, 20, 11),
+        completed: DateTime(2026, 7, 20, 11, 5),
+      );
+
+      final data = await service.load(
+        HistoryPeriod.current(DateTime(2026, 7, 20)),
+      );
+
+      expect(data.summary.completed, 2);
+    });
+
+    test('scheduled completion remains counted once', () async {
+      final session = await database.createSession(
+        scheduledAt: DateTime(2026, 7, 20, 11),
+        createdAt: DateTime(2026, 7, 20, 10),
+      );
+      await database.startSession(
+        session.id,
+        DateTime(2026, 7, 20, 11),
+        'shoulder-rolls',
+      );
+      await database.completeSession(
+        session.id,
+        DateTime(2026, 7, 20, 11, 5),
+      );
+      await expectLater(
+        database.completeSession(
+          session.id,
+          DateTime(2026, 7, 20, 11, 6),
+        ),
+        throwsStateError,
+      );
+
+      final data = await service.load(
+        HistoryPeriod.current(DateTime(2026, 7, 20)),
+      );
+
+      expect(data.summary.completed, 1);
+      expect(data.days.single.completed, 1);
+    });
+
     test('refreshes provider after session completion', () async {
       final session = await database.createSession(
         scheduledAt: DateTime(2026, 7, 20, 9),

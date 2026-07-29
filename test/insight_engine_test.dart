@@ -194,6 +194,42 @@ void main() {
     );
   });
 
+  test('manual completion does not increase scheduled adherence', () {
+    final expected = scheduledBellTimesInRange(
+      schedule: const WorkSchedule(
+        startMinutes: 9 * 60,
+        endMinutes: 12 * 60,
+        cadenceMinutes: 60,
+      ),
+      preferences: const RecessPreferences(),
+      start: DateTime(2026, 7, 20),
+      end: DateTime(2026, 7, 27),
+    );
+    final manual = _session(
+      1,
+      DateTime(2026, 7, 20, 10, 30),
+      status: RecessSessionStatus.completed,
+      startedAt: DateTime(2026, 7, 20, 10, 30),
+      completedAt: DateTime(2026, 7, 20, 10, 35),
+    );
+
+    final summary = engine.summarize(
+      sessions: [manual],
+      exercises: _exercises,
+      expectedWeeklyOccurrences: expected,
+      now: DateTime(2026, 7, 22, 12),
+    );
+
+    expect(
+      summary.observations
+          .singleWhere(
+            (value) => value.type == InsightObservationType.weeklyCompletion,
+          )
+          .description,
+      'You completed 0 of 10 scheduled Recesses this week.',
+    );
+  });
+
   test('weekly completion excludes schedule times disabled by Quiet Hours', () {
     final expected = scheduledBellTimesInRange(
       schedule: const WorkSchedule(

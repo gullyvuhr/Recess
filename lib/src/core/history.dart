@@ -114,10 +114,19 @@ class HistoryService {
   }
 
   Future<HistoryData> load(HistoryPeriod period) async {
-    final sessions = await database.sessionsInRange(
+    final scheduledSessions = await database.sessionsInRange(
       period.start,
       period.endExclusive,
     );
+    final completedSessions = await database.completedSessionsInRange(
+      period.start,
+      period.endExclusive,
+    );
+    final sessionsById = {
+      for (final session in scheduledSessions) session.id: session,
+      for (final session in completedSessions) session.id: session,
+    };
+    final sessions = sessionsById.values.toList(growable: false);
     final catalog = await exercises.load();
     final exerciseNames = {
       for (final exercise in catalog) exercise.id: exercise.title
@@ -135,7 +144,16 @@ class HistoryService {
 
     final grouped = <DateTime, List<HistorySession>>{};
     for (final item in items) {
-      grouped.putIfAbsent(item.session.workdayDate, () => []).add(item);
+      final session = item.session;
+      final historyDate = session.status == RecessSessionStatus.completed
+          ? session.completedAt!
+          : session.originalScheduledAt;
+      final localDate = DateTime(
+        historyDate.year,
+        historyDate.month,
+        historyDate.day,
+      );
+      grouped.putIfAbsent(localDate, () => []).add(item);
     }
     final days = grouped.entries
         .map((entry) => HistoryDay(date: entry.key, sessions: entry.value))

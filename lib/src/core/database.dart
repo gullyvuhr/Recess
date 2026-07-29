@@ -530,6 +530,25 @@ class RecessDatabase extends GeneratedDatabase {
   Future<List<RecessSession>> completedSessions() =>
       _sessionsWhere("status = 'completed'", 'completed_at DESC, id DESC');
 
+  Future<List<RecessSession>> completedSessionsInRange(
+    DateTime startInclusive,
+    DateTime endExclusive,
+  ) async {
+    final rows = await customSelect(
+      '''
+        SELECT * FROM recess_sessions
+        WHERE status = 'completed'
+          AND completed_at >= ? AND completed_at < ?
+        ORDER BY completed_at DESC, id DESC
+      ''',
+      variables: [
+        Variable.withInt(startInclusive.millisecondsSinceEpoch),
+        Variable.withInt(endExclusive.millisecondsSinceEpoch),
+      ],
+    ).get();
+    return rows.map(_sessionFromRow).toList();
+  }
+
   Future<List<RecessSession>> deferredSessions() => _sessionsWhere(
         'deferral_count > 0',
         'last_deferred_at DESC, id DESC',
